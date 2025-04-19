@@ -7,10 +7,12 @@ import FacultyDashboard from "./pages/FacultyDashboard";
 import ExamDivDashboard from "./pages/ExamDivDashboard";
 import UploadPaper from "./pages/UploadPaper";
 import HomePage from "./pages/HomePage";
+import { ToastContainer } from "react-toastify";
 
 function App() {
   return (
     <div>
+      <ToastContainer/>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
