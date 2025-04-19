@@ -1,6 +1,6 @@
 export const examPapers = [
   {
-    id: 1,
+    _id: 1,
     subjectCode: "BCS-201",
     session: "Mid-Term",
     year: "2023",
@@ -8,7 +8,7 @@ export const examPapers = [
     uploadedBy: "Doraemon",
   },
   {
-    id: 2,
+    _id: 2,
     subjectCode: "BCS-101",
     session: "Re-Mid-Term",
     year: "2022",
@@ -16,7 +16,7 @@ export const examPapers = [
     uploadedBy: "Nobita",
   },
   {
-    id: 3,
+    _id: 3,
     subjectCode: "BCS-301",
     session: "End-Term",
     year: "2023",
@@ -24,7 +24,7 @@ export const examPapers = [
     uploadedBy: "Shizuka",
   },
   {
-    id: 4,
+    _id: 4,
     subjectCode: "BCS-401",
     session: "Mid-Term",
     year: "2021",
@@ -32,7 +32,7 @@ export const examPapers = [
     uploadedBy: "Gian",
   },
   {
-    id: 5,
+    _id: 5,
     subjectCode: "BCS-202",
     session: "Re-Mid-Term",
     year: "2022",
@@ -40,7 +40,7 @@ export const examPapers = [
     uploadedBy: "Suneo",
   },
   {
-    id: 6,
+    _id: 6,
     subjectCode: "BCS-302",
     session: "End-Term",
     year: "2023",
@@ -48,7 +48,7 @@ export const examPapers = [
     uploadedBy: "Dekisugi",
   },
   {
-    id: 7,
+    _id: 7,
     subjectCode: "BCS-402",
     session: "Mid-Term",
     year: "2021",
@@ -56,7 +56,7 @@ export const examPapers = [
     uploadedBy: "Dorami",
   },
   {
-    id: 8,
+    _id: 8,
     subjectCode: "BCS-303",
     session: "Re-Mid-Term",
     year: "2020",
@@ -64,7 +64,7 @@ export const examPapers = [
     uploadedBy: "Jaiko",
   },
   {
-    id: 9,
+    _id: 9,
     subjectCode: "BCS-203",
     session: "End-Term",
     year: "2023",
@@ -80,7 +80,7 @@ export const examPapers = [
     uploadedBy: "Hidetoshi",
   },
   {
-    id: 11,
+    _id: 11,
     subjectCode: "BCS-403",
     session: "Re-Mid-Term",
     year: "2021",
@@ -88,7 +88,7 @@ export const examPapers = [
     uploadedBy: "Tamako",
   },
   {
-    id: 12,
+    _id: 12,
     subjectCode: "BAS-106",
     session: "End-Term",
     year: "2023",
@@ -96,7 +96,7 @@ export const examPapers = [
     uploadedBy: "Perman",
   },
   {
-    id: 13,
+    _id: 13,
     subjectCode: "BCS-201",
     session: "Mid-Term",
     year: "2020",
@@ -104,7 +104,7 @@ export const examPapers = [
     uploadedBy: "Kiteretsu",
   },
   {
-    id: 14,
+    _id: 14,
     subjectCode: "BCS-301",
     session: "Re-Mid-Term",
     year: "2022",
@@ -112,7 +112,7 @@ export const examPapers = [
     uploadedBy: "Chibi",
   },
   {
-    id: 15,
+    _id: 15,
     subjectCode: "BCS-401",
     session: "End-Term",
     year: "2023",
