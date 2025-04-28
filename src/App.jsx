@@ -9,21 +9,23 @@ import UploadPaper from "./pages/UploadPaper";
 import HomePage from "./pages/HomePage";
 import { ToastContainer } from "react-toastify";
 import Navbar from "./components/Navbar";
+import Layout from "./Layout"; 
 
 function App() {
   return (
     <div>
       <ToastContainer/>
-      <Navbar/>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/admin" element={<Admin />} />
-        <Route path="/faculty" element={<FacultyDashboard />} />
-        <Route path="/exam-div" element={<ExamDivDashboard />} />
-        <Route path="/upload" element={<UploadPaper />} />
-        <Route path="/" element={<HomePage />} />
-      </Routes>
+      <Layout>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/admin" element={<Admin />} />
+          <Route path="/faculty" element={<FacultyDashboard />} />
+          <Route path="/exam-div" element={<ExamDivDashboard />} />
+          <Route path="/upload" element={<UploadPaper />} />
+          <Route path="/" element={<HomePage />} />
+        </Routes>
+      </Layout>
     </div>
   );
 }

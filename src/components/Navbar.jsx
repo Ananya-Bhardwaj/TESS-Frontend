@@ -12,12 +12,16 @@ const Navbar = () => {
       {/* Desktop Menu */}
       <div className="hidden sm:flex items-center gap-8">
         <Link to="/">Home</Link>
-        <Link to="/">About Us</Link>
-        <Link to="/">Contact Us</Link>
+        {/* <Link to="/">About Us</Link>
+        <Link to="/">Contact Us</Link> */}
 
-        <button className="cursor-pointer px-8 py-2 bg-indigo-500 hover:bg-indigo-600 transition text-white rounded-full">
-          Login
-        </button>
+        <Link to='/login'>
+          <button 
+          className="cursor-pointer px-8 py-2 bg-indigo-500 hover:bg-indigo-600 transition text-white rounded-full"
+          >
+            Login
+          </button>
+        </Link>
       </div>
 
       <button
