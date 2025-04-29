@@ -160,6 +160,30 @@ export function signatureGeneration(facultyPrivateKey, message) {
   return { r, s };
 }
 
+export function generatePolynomialAndCommitments(t, constantTerm) {
+  // Generate random coefficients for the polynomial
+  const coefficients = [constantTerm];
+  for (let i = 1; i < t; i++) {
+    coefficients.push(BigInt(Math.floor(Math.random() * Number(order))));
+  }
+
+  // Generate commitments for each coefficient
+  const commitments = coefficients.map((coeff) => G.mul(coeff));
+
+  return { coefficients, commitments };
+}
+
+export function evaluatePolynomial(coefficients, x) {
+  let result = BigInt(0);
+
+  coefficients.forEach((coeff, i) => {
+    result += coeff * BigInt(x) ** BigInt(i);
+  });
+
+  return result % order;
+}
+
+
 export function generateSessionKey(){
   console.log("session key generated");
 }

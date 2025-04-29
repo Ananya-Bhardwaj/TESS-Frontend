@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { filterOptions } from "../assets/assets";
 import { toast } from "react-toastify";
+import { encryptFile, signatureGeneration } from "../utils"; 
 
 const UploadPaper = () => {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -34,17 +35,14 @@ const UploadPaper = () => {
     });
   };
 
-  const encryptPaper = () =>{
-    console.log("paper encryption logic here");
-  }
 
   const encryptHandler = () => {
     // Your encryption logic here
     if (!validateForm()) return;
     // Proceed with encryption
     try {
-      encryptPaper();
-      console.log("encrypting paper...");
+      encryptFile();
+      console.log("Encrypting paper...");
       // Simulate upload
       toast.success("File encrypted successfully!");
       setIsEncrypted(true); // toggle to show next button
@@ -54,16 +52,11 @@ const UploadPaper = () => {
     }
   };
 
-  const signPaper = () => {
-    // Your signing logic here
-    console.log("Signing paper...");
-  };
-
   const submitHandler = () => {
     if (!validateForm()) return;
     // Proceed with signing and uploading
     try {
-      signPaper();
+      signatureGeneration(); 
       console.log("Uploading paper...");
       // Simulate upload
       toast.success("File uploaded successfully!");
