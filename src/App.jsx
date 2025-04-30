@@ -10,6 +10,7 @@ import HomePage from "./pages/HomePage";
 import { ToastContainer } from "react-toastify";
 import Navbar from "./components/Navbar";
 import Layout from "./Layout"; 
+import Notification from "./Notification";
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
           <Route path="/exam-div" element={<ExamDivDashboard />} />
           <Route path="/upload" element={<UploadPaper />} />
           <Route path="/" element={<HomePage />} />
+          <Route path="/notification" element={<Notification/>} />
         </Routes>
       </Layout>
     </div>
