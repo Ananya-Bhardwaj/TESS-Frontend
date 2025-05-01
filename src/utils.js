@@ -1,68 +1,161 @@
 //symmetric encryption
-import fs from 'fs'; 
-import crypto from 'crypto'; 
+import fs from "fs";
+import crypto from "crypto";
 import { ec as EC } from "elliptic";
-import { BN } from 'bn.js';
+import { BN } from "bn.js";
+import CryptoJS from "crypto-js";
 
+const ec = new EC("secp256k1");
+var key = ec.genKeyPair();
+
+
+
+
+//generate session key
+export function generateSessionKey() {
+  // Generate 256-bit (32-byte) random key
+  const sessionKey = CryptoJS.lib.WordArray.random(32);
+
+  // Convert to Base64 for easier storage/transmission
+  const sessionKeyBase64 = CryptoJS.enc.Base64.stringify(sessionKey);
+
+  console.log("Generated session key:", sessionKeyBase64);
+  console.log("key 2:", sessionKey.toString(CryptoJS.enc.Base64));
+  return sessionKey.toString(CryptoJS.enc.Base64);
+  // return sessionKeyBase64;
+}
+
+//encrypt file
+/**
+ * Encrypts a file (as ArrayBuffer/Blob) using AES-256-CBC
+ * @param {ArrayBuffer} fileData - Raw file data
+ * @param {string} sessionKeyBase64 - Base64-encoded AES key
+ * @returns {Object} { iv: string, ciphertext: string }
+ */
+export async function encryptFile(fileData, sessionKeyBase64) {
+  // Convert Base64 key back to CryptoJS format
+  const key = CryptoJS.enc.Base64.parse(sessionKeyBase64);
+
+  // Generate a random IV (Initialization Vector)
+  const iv = CryptoJS.lib.WordArray.random(16); // 128-bit IV for AES-CBC
+
+  // Convert file data to CryptoJS WordArray
+  const fileWordArray = CryptoJS.lib.WordArray.create(new Uint8Array(fileData));
+
+  // Encrypt with AES-256-CBC
+  const encrypted = CryptoJS.AES.encrypt(fileWordArray, key, {
+    iv: iv,
+    mode: CryptoJS.mode.CBC,
+    padding: CryptoJS.pad.Pkcs7,
+  });
+
+  return {
+    iv: iv.toString(CryptoJS.enc.Base64), // IV is needed for decryption
+    ciphertext: encrypted.toString(), // Base64-encoded encrypted file
+  };
+}
+
+//decryption of file
+export function decryptFile() {
+  const decrypted = CryptoJS.AES.decrypt(
+    "eWuJdcVoLpXCC+K9l4MUGw==",
+    CryptoJS.enc.Base64.parse("j5FOz+WCUOYJeHSu7zH/pAXF7clmiKvoPIayghz16J4="),
+    {
+      iv: CryptoJS.enc.Base64.parse("IgpqiJqhs7x3GQUp38Nmug=="),
+      mode: CryptoJS.mode.CBC,
+    }
+  );
+  console.log("Test decryption:", decrypted.toString(CryptoJS.enc.Utf8));
+}
+// export function decryptFile(ciphertextBase64, ivBase64, sessionKeyBase64) {
+//   // Input validation
+//   if (!ciphertextBase64 || !ivBase64 || !sessionKeyBase64) {
+//     throw new Error('Missing required decryption parameters');
+//   }
+
+//   try {
+//     // 1. Parse key and IV
+//     const key = CryptoJS.enc.Base64.parse(sessionKeyBase64);
+//     const iv = CryptoJS.enc.Base64.parse(ivBase64);
+
+//     // 2. Decrypt
+//     const decrypted = CryptoJS.AES.decrypt(ciphertextBase64, key, {
+//       iv,
+//       mode: CryptoJS.mode.CBC,
+//       padding: CryptoJS.pad.Pkcs7
+//     });
+
+//     // 3. Convert to ArrayBuffer (optimized version)
+//     const latin1 = decrypted.toString(CryptoJS.enc.Latin1);
+//     const buffer = new ArrayBuffer(latin1.length);
+//     new Uint8Array(buffer).set(
+//       latin1.split('').map(c => c.charCodeAt(0))
+//     );
+
+//     return buffer;
+//   } catch (error) {
+//     console.error('Decryption error:', error);
+//     throw new Error('Failed to decrypt file. Invalid key or corrupted data.');
+//   }
+// }
 
 // Initialize curve (e.g., 'secp256k1', 'p256', etc.)
-const ec = new EC('secp256k1');
+
 const G = ec.g; // base point
 const order = ec.n; // order of the curve
 
-export function encryptFile(key, filename) {
-  // Convert the key (a string or Buffer) to a usable encryption key and IV
-  const algorithm = 'aes-256-cbc';
-  const iv = crypto.randomBytes(16); // Initialization vector
+// export function encryptFile(key, filename) {
+//   // Convert the key (a string or Buffer) to a usable encryption key and IV
+//   const algorithm = 'aes-256-cbc';
+//   const iv = crypto.randomBytes(16); // Initialization vector
 
-  // Ensure the key is a 32-byte Buffer
-  const encryptionKey = crypto.createHash('sha256').update(String(key)).digest();
+//   // Ensure the key is a 32-byte Buffer
+//   const encryptionKey = crypto.createHash('sha256').update(String(key)).digest();
 
-  const cipher = crypto.createCipheriv(algorithm, encryptionKey, iv);
+//   const cipher = crypto.createCipheriv(algorithm, encryptionKey, iv);
 
-  // Read the original file
-  const originalData = fs.readFileSync(filename);
+//   // Read the original file
+//   const originalData = fs.readFileSync(filename);
 
-  // Encrypt the data
-  let encrypted = cipher.update(originalData);
-  encrypted = Buffer.concat([encrypted, cipher.final()]);
+//   // Encrypt the data
+//   let encrypted = cipher.update(originalData);
+//   encrypted = Buffer.concat([encrypted, cipher.final()]);
 
-  // Save the IV with the encrypted data (prepend IV to encrypted data)
-  const encryptedWithIv = Buffer.concat([iv, encrypted]);
+//   // Save the IV with the encrypted data (prepend IV to encrypted data)
+//   const encryptedWithIv = Buffer.concat([iv, encrypted]);
 
-  // Write the encrypted file
-  fs.writeFileSync(filename, encryptedWithIv);
+//   // Write the encrypted file
+//   fs.writeFileSync(filename, encryptedWithIv);
 
-  console.log('File encrypted successfully.');
-}
+//   console.log('File encrypted successfully.');
+// }
 
 //symmetric decryption
 
-export function decryptFile(filename, key) {
-  const algorithm = 'aes-256-cbc';
+// export function decryptFile(filename, key) {
+//   const algorithm = 'aes-256-cbc';
 
-  // Ensure the key is a 32-byte Buffer
-  const encryptionKey = crypto.createHash('sha256').update(String(key)).digest();
+//   // Ensure the key is a 32-byte Buffer
+//   const encryptionKey = crypto.createHash('sha256').update(String(key)).digest();
 
-  // Read the encrypted file
-  const encryptedData = fs.readFileSync(filename);
+//   // Read the encrypted file
+//   const encryptedData = fs.readFileSync(filename);
 
-  // Extract the IV from the beginning of the file (first 16 bytes)
-  const iv = encryptedData.slice(0, 16);
-  const encryptedContent = encryptedData.slice(16);
+//   // Extract the IV from the beginning of the file (first 16 bytes)
+//   const iv = encryptedData.slice(0, 16);
+//   const encryptedContent = encryptedData.slice(16);
 
-  const decipher = crypto.createDecipheriv(algorithm, encryptionKey, iv);
+//   const decipher = crypto.createDecipheriv(algorithm, encryptionKey, iv);
 
-  // Decrypt the data
-  let decrypted = decipher.update(encryptedContent);
-  decrypted = Buffer.concat([decrypted, decipher.final()]);
+//   // Decrypt the data
+//   let decrypted = decipher.update(encryptedContent);
+//   decrypted = Buffer.concat([decrypted, decipher.final()]);
 
-  // Write the decrypted data back to the file
-  fs.writeFileSync(filename, decrypted);
+//   // Write the decrypted data back to the file
+//   fs.writeFileSync(filename, decrypted);
 
-  console.log('File decrypted successfully.');
-}
-
+//   console.log('File decrypted successfully.');
+// }
 
 export function asymmetricEncryption(pubKey, message) {
   // pubKey is an EC point
@@ -81,7 +174,6 @@ export function asymmetricEncryption(pubKey, message) {
 }
 
 export const reconstructKey = (subSecretShare, t) => {
-
   if (subSecretShare.length < t) {
     throw new Error("Insufficient shares to reconstruct the key.");
   }
@@ -117,7 +209,9 @@ export function asymmetricDecryption(secKey, cipher) {
 
 export function signatureVerification(facultyPublicKey, r, s, message) {
   // Hash the message using SHA-256
-  const h = BigInt('0x' + crypto.createHash('sha256').update(message).digest('hex'));
+  const h = BigInt(
+    "0x" + crypto.createHash("sha256").update(message).digest("hex")
+  );
 
   // Compute w = s^(-1) mod p
   const w = s.invm(p);
@@ -140,7 +234,9 @@ export function signatureVerification(facultyPublicKey, r, s, message) {
 
 export function signatureGeneration(facultyPrivateKey, message) {
   // Hash the message using SHA-256
-  const h = BigInt('0x' + crypto.createHash('sha256').update(message).digest('hex'));
+  const h = BigInt(
+    "0x" + crypto.createHash("sha256").update(message).digest("hex")
+  );
 
   // Generate a random scalar k
   const k = BigInt(ec.genKeyPair().getPrivate().toString(10)) % p;
@@ -183,26 +279,26 @@ export function evaluatePolynomial(coefficients, x) {
   return result % order;
 }
 
-
-export function generateSessionKey(){
-  console.log("session key generated");
-}
-export function encryptPaper(){
+// export function generateSessionKey(){
+//   console.log("session key generated");
+// }
+export function encryptPaper() {
   console.log("paper encrypted");
 }
-export function encryptSessionKey(sessionKey){
+export function encryptSessionKey(sessionKey) {
   //fetch public key from backend
-  let C1, C2 = asymmetricEncryption(pubKey, sessionKey)
+  let C1,
+    C2 = asymmetricEncryption(pubKey, sessionKey);
 }
-export function decryptPaper(){
+export function decryptPaper() {
   console.log("paper decrypted");
 }
-export function decryptSessionKey(){
+export function decryptSessionKey() {
   console.log("session key encrypted");
 }
-export function signPaper(){
+export function signPaper() {
   console.log("paper signed");
 }
-export function verifyPaper(){
+export function verifyPaper() {
   console.log("paper verified");
 }
