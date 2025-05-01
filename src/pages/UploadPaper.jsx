@@ -1,21 +1,39 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { filterOptions } from "../assets/assets";
 import { toast } from "react-toastify";
-import { encryptFile, generateSessionKey, signatureGeneration } from "../utils";
+import { generateSessionKey, symmetricDecryption} from "../utils";
 import CryptoJS from "crypto-js";
 import { ec, ec as EC } from 'elliptic';
+import { sign, verify, symmtericEncryption, hashCiphertext } from "../utils"; 
+import axios from "axios";
+import { fetchSubjects } from "../data";
 
 const UploadPaper = () => {
+  const [subjects, setSubjects] = useState([]); 
   const [selectedFile, setSelectedFile] = useState(null);
   const [isEncrypted, setIsEncrypted] = useState(false);
   const [encryptedData, setEncryptedData] = useState(null);
 
   const [formData, setFormData] = useState({
-    subjectCode: "",
-    year: "",
-    session: "",
+    subject: "",
+    // year: "",
+    exam_type: "",
     file: null,
   });
+
+  useEffect(() => {
+    //set subjects and get the data from fetchSubjects function
+    const fetchData = async () => {
+      try {
+        const data = await fetchSubjects();
+        setSubjects(data);
+      } catch (error) {
+        console.error("Error fetching subjects:", error);
+      }
+    };
+    fetchData();
+
+  }, [])
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -31,367 +49,92 @@ const UploadPaper = () => {
 
   const handleCancel = () => {
     setFormData({
-      subjectCode: "",
-      year: "",
-      session: "",
+      subject: "",
+      // year: "",
+      exam_type: "",
       file: null,
     });
   };
 
+// async function encryptDecryptAndDownload() {
+//   encryptedData = symmtericEncryption(selectedFile)
 
-// const ec = new EC('secp256k1'); // Initialize elliptic curve
+//   //send encryptedData to db 
 
-// async function encryptSignAndDownload(selectedFile) {
-//   try {
-//     // 1. Generate ECDSA key pair
-//     const keyPair = ec.genKeyPair();
-//     const pubKey = keyPair.getPublic('hex');
-//     const privKey = keyPair.getPrivate('hex');
+//   const hashPaper = hashCiphertext(ciphertext);
+//   console.log(hashPaper);
 
-//     // 2. Generate session key and read file
-//     const sessionKey = generateSessionKey();
-//     const fileData = await selectedFile.arrayBuffer();
+//       //4.5 signature ka func called here neeche defined hai
+//       signAndVerify(hashPaper);
 
-//     // 3. Encrypt the file
-//     const wordArray = CryptoJS.lib.WordArray.create(new Uint8Array(fileData));
-//     const encrypted = CryptoJS.AES.encrypt(wordArray, sessionKey, {
-//       mode: CryptoJS.mode.CBC,
-//       padding: CryptoJS.pad.Pkcs7,
-//     });
-    
-//     const ciphertext = encrypted.toString();
-//     const ivBase64 = encrypted.iv.toString(CryptoJS.enc.Base64);
 
-//     // 4. Create SHA-256 hash of ciphertext
-//     const msgHash = CryptoJS.SHA256(ciphertext).toString();
-
-//     // 5. Sign the hash with private key (ECDSA)
-//     const signature = keyPair.sign(msgHash, 'hex', { canonical: true });
-//     const signatureDer = signature.toDER('hex');
-
-//     // 6. Prepare encrypted package
-//     const encryptedPackage = {
-//       ciphertext,
-//       iv: ivBase64,
-//       signature: signatureDer,
-//       publicKey: pubKey,
-//       filename: selectedFile.name,
-//       algorithm: "AES-256-CBC+ECDSA-secp256k1",
-//       timestamp: new Date().toISOString()
-//     };
-
-//     // 7. Download encrypted package
-//     downloadFile(
-//       JSON.stringify(encryptedPackage, null, 2),
-//       `encrypted_${selectedFile.name}.json`,
-//       'application/json'
-//     );
-
-//     // 8. Verify and download decrypted file (optional)
-//     const decrypted = CryptoJS.AES.decrypt(ciphertext, sessionKey, {
-//       iv: CryptoJS.enc.Base64.parse(ivBase64),
-//       mode: CryptoJS.mode.CBC,
-//       padding: CryptoJS.pad.Pkcs7
-//     });
-    
-//     downloadFile(
-//       wordArrayToArrayBuffer(decrypted),
-//       `decrypted_${selectedFile.name}`,
-//       selectedFile.type
-//     );
-
-//     return {
-//       sessionKey: sessionKey.toString(),
-//       iv: ivBase64,
-//       signature: signatureDer,
-//       publicKey: pubKey,
-//       privateKey: privKey, // WARNING: Only for demo, never expose in production!
-//       originalFilename: selectedFile.name
-//     };
-
-//   } catch (error) {
-//     console.error("File processing failed:", error);
-//     throw error;
-//   }
-// }
-
-// Helper functions
-// // function generateSessionKey() {
-//   return CryptoJS.lib.WordArray.random(32);
-// }
-
-// function wordArrayToArrayBuffer(wordArray) {
-//   const latin1 = wordArray.toString(CryptoJS.enc.Latin1);
-//   const bytes = new Uint8Array(latin1.length);
-//   for (let i = 0; i < latin1.length; i++) {
-//     bytes[i] = latin1.charCodeAt(i);
-//   }
-//   return bytes.buffer;
-// }
-
-// function downloadFile(data, filename, type = 'application/octet-stream') {
-//   const blob = new Blob([data], { type });
-//   const url = URL.createObjectURL(blob);
-//   const a = document.createElement('a');
-//   a.href = url;
-//   a.download = filename;
-//   document.body.appendChild(a);
-//   a.click();
-//   setTimeout(() => {
-//     document.body.removeChild(a);
-//     URL.revokeObjectURL(url);
-//   }, 200);
-// }
-
-// Verification function (for recipient)
-// function verifyPackage(encryptedPackage) {
-//   const keyPair = ec.keyFromPublic(encryptedPackage.publicKey, 'hex');
-//   const msgHash = CryptoJS.SHA256(encryptedPackage.ciphertext).toString();
+//       // 5. Decrypt (for verification)
+//       const bytes = symmetricDecryption(ciphertext, sessionKey);
+      
+//       // const decryptedBlob = new Blob([bytes.buffer], { type: selectedFile.type });
+//       // const decryptedUrl = URL.createObjectURL(decryptedBlob);
+//       // const decryptedLink = document.createElement('a');
+//       // decryptedLink.href = decryptedUrl;
+//       // decryptedLink.download = `decrypted_${selectedFile.name}`;
+//       // document.body.appendChild(decryptedLink);
+//       // decryptedLink.click();
   
-//   try {
-//     const signature = keyPair.verify(
-//       msgHash,
-//       encryptedPackage.signature
-//     );
-//     return {
-//       isValid: signature,
-//       isRecent: (Date.now() - new Date(encryptedPackage.timestamp)) < 300000 // 5 min
-//     };
-//   } catch (e) {
-//     return { isValid: false, error: e.message };
+//       // Cleanup
+//       setTimeout(() => {
+//         document.body.removeChild(encryptedLink);
+//         document.body.removeChild(decryptedLink);
+//         URL.revokeObjectURL(encryptedUrl);
+//         URL.revokeObjectURL(decryptedUrl);
+//       }, 200);
+  
+//       return {
+//         sessionKey: sessionKey.toString(),
+//         iv: ivBase64,
+//         originalFilename: selectedFile.name
+//       };
+  
+//     } catch (error) {
+//       console.error("File processing failed:", error);
+//       throw error;
+//     }
 //   }
-// }
 
-//ye upar vale idr chalr rhe ya nhi but not needed coz neeche vala encrypt decrpt chal rha signature kar rhi abhi
+  const encryptPaper = async() => {
+    try{
+      const data = await symmtericEncryption(selectedFile); 
+      setEncryptedData(data); 
+      setIsEncrypted(true); 
+    }catch(err){
+      console.error("File processing failed:", err);
+      throw err;
+    }
+  }
 
-async function encryptDecryptAndDownload() {
+  const signPaper = async () => {
     try {
-      const sessionKey = generateSessionKey();
+      const derSignature = await sign(encryptedData.ciphertext); 
       
-      // 1. Read file data
-      const fileData = await selectedFile.arrayBuffer();
-  
-      // 2. Convert to CryptoJS WordArray
-      const wordArray = CryptoJS.lib.WordArray.create(new Uint8Array(fileData));
-  
-      // 3. Encrypt
-      const encrypted = CryptoJS.AES.encrypt(wordArray, sessionKey, {
-        mode: CryptoJS.mode.CBC,
-        padding: CryptoJS.pad.Pkcs7,
-      });
-      
-      const ciphertext = encrypted.toString();
-      const ivBase64 = encrypted.iv.toString(CryptoJS.enc.Base64);
-      
-      console.log("Encryption details:", {
-        ciphertext,
-        iv: ivBase64,
-        sessionKey: sessionKey.toString()
-      });
-  
-      // 4. Download ENCRYPTED file (as JSON containing ciphertext + IV)
-      const encryptedData = {
-        ciphertext,
-        iv: ivBase64,
-        filename: selectedFile.name
-      };
-      
-      const encryptedBlob = new Blob(
-        [JSON.stringify(encryptedData, null, 2)], 
-        { type: 'application/json' }
-      );
-      
-      const encryptedUrl = URL.createObjectURL(encryptedBlob);
-      const encryptedLink = document.createElement('a');
-      encryptedLink.href = encryptedUrl;
-      encryptedLink.download = `encrypted_${selectedFile.name}.json`;
-      document.body.appendChild(encryptedLink);
-      encryptedLink.click();
+      setFormData((prev) => ({ ...prev, sign: derSignature, ciphertext: encryptedData.ciphertext }));
+     
+      const token = localStorage.getItem("token");
 
-      const hashPaper = hashCiphertext(ciphertext);
-      console.log(hashPaper);
+      //upload to db 
+      const response = await axios.post('http://localhost:5000/api/papers', formData, {
+        headers: {
+          Authorization: `Bearer ${token}`, // Include the token in the Authorization header
+        },
+      }); 
 
-      //4.5 signature ka func called here neeche defined hai
-      signAndVerify(hashPaper);
+      console.log("File signed and uploaded successfully:", response.data);
+      toast.success("File signed and uploaded successfully!");
 
-
-      // 5. Decrypt (for verification)
-      const decrypted = CryptoJS.AES.decrypt(ciphertext, sessionKey, {
-        iv: CryptoJS.enc.Base64.parse(ivBase64),
-        mode: CryptoJS.mode.CBC,
-        padding: CryptoJS.pad.Pkcs7
-      });
-  
-      // 6. Convert to binary and download DECRYPTED file
-      const bytes = new Uint8Array(
-        decrypted.toString(CryptoJS.enc.Latin1)
-          .split('')
-          .map(c => c.charCodeAt(0))
-      );
-      
-      const decryptedBlob = new Blob([bytes.buffer], { type: selectedFile.type });
-      const decryptedUrl = URL.createObjectURL(decryptedBlob);
-      const decryptedLink = document.createElement('a');
-      decryptedLink.href = decryptedUrl;
-      decryptedLink.download = `decrypted_${selectedFile.name}`;
-      document.body.appendChild(decryptedLink);
-      decryptedLink.click();
-  
-      // Cleanup
-      setTimeout(() => {
-        document.body.removeChild(encryptedLink);
-        document.body.removeChild(decryptedLink);
-        URL.revokeObjectURL(encryptedUrl);
-        URL.revokeObjectURL(decryptedUrl);
-      }, 200);
-  
-      return {
-        sessionKey: sessionKey.toString(),
-        iv: ivBase64,
-        originalFilename: selectedFile.name
-      };
-  
-    } catch (error) {
-      console.error("File processing failed:", error);
-      throw error;
+    }catch(err){
+      console.error("Error signing file", err); 
+      toast.error("Error signing file. Please try again.");
+      throw err; 
     }
   }
 
-  async function hashCiphertext(ciphertext) {
-    // Convert Base64 ciphertext to ArrayBuffer
-    const binaryString = atob(ciphertext);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    
-    // Create SHA-256 hash
-    const hashBuffer = await crypto.subtle.digest('SHA-256', bytes);
-
-    // Convert to Hex for readable output not actually needed just for checking
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    
-    console.log('SHA-256 Hash (Hex):', hashHex);
-    
-    // Also show Base64 version
-    const hashBase64 = btoa(String.fromCharCode(...new Uint8Array(hashBuffer)));
-    console.log('SHA-256 Hash (Base64):', hashBase64);
-    return hashBuffer;
-  }
-
-  // ye abhi work kar rhi ispe not working filhaal
-  async function signAndVerify(hash) {
-    console.log('=== Starting ECDSA Process ===');
-    const hashedCiphertext = await Promise.resolve(hash);
-    console.log(`Input hash: ${hashedCiphertext}\n`);
-  
-    // 1. Generate Key Pair
-    const keyPair = ec.genKeyPair();
-    const privKey = keyPair.getPrivate('hex');
-    const pubKey = keyPair.getPublic('hex');
-    
-    console.log('Generated Key Pair:');
-    console.log(`Private Key: ${privKey}`);
-    console.log(`Public Key: ${pubKey}\n`);
-  
-    // 2. Sign the Hash
-    const signature = keyPair.sign(hashedCiphertext, 'hex', {
-      canonical: true,
-    });
-    const derSignature = signature.toDER('hex');
-    
-    console.log('Created Signature:');
-    console.log(`R: ${signature.r.toString(16)}`);
-    console.log(`S: ${signature.s.toString(16)}`);
-    console.log(`DER Format: ${derSignature}\n`);
-  
-    // 3. Verify Signature
-    const isValid = keyPair.verify(hashedCiphertext, signature);
-    
-    console.log('Verification:');
-    console.log(`Signature Valid? ${isValid ? '✅ YES' : '❌ NO'}`);
-    console.log('\n=== Process Complete ===');
-  
-    return {
-      privateKey: privKey, // WARNING: For demo only - never expose in production!
-      publicKey: pubKey,
-      signature: derSignature,
-      isValid
-    };
-  }
-
-  // const encryptHandler = async () => {
-  //   // Your encryption logic here
-  //   if (!validateForm()) return;
-  //   // Proceed with encryption
-  //   else {
-  //     const sessionKey = generateSessionKey();
-  //     // var ciphertext = CryptoJS.AES.encrypt(selectedFile, sessionKey).toString();
-  //     // console.log("cipher text:", ciphertext);
-
-  //     // var bytes = CryptoJS.AES.decrypt(ciphertext, sessionKey);
-  //     // var originalText = bytes.toString(CryptoJS.enc.Utf8);
-
-  //     // console.log(originalText); // 'my message'
-  //     // Read file as ArrayBuffer
-  //     const fileData = await selectedFile.arrayBuffer();
-
-  //     // Convert to CryptoJS WordArray
-  //     const wordArray = CryptoJS.lib.WordArray.create(new Uint8Array(fileData));
-
-  //     // Encrypt
-  //     const encrypted = CryptoJS.AES.encrypt(wordArray, sessionKey, {
-  //       mode: CryptoJS.mode.CBC,
-  //       padding: CryptoJS.pad.Pkcs7,
-  //     });
-  //     const ciphertext = encrypted.toString();
-  //     const ivBase64 = encrypted.iv.toString(CryptoJS.enc.Base64);
-  //     console.log("encrypted data:", {
-  //       ciphertext: encrypted.toString(),
-  //       iv: encrypted.iv.toString(CryptoJS.enc.Base64)
-  //     });
-
-  //     const decrypted = CryptoJS.AES.decrypt(ciphertext, sessionKey, {
-  //       iv: CryptoJS.enc.Base64.parse(ivBase64),
-  //       mode: CryptoJS.mode.CBC,
-  //       padding: CryptoJS.pad.Pkcs7
-  //     });
-  //     const bytes = new Uint8Array(
-  //       decrypted.toString(CryptoJS.enc.Latin1)
-  //         .split('')
-  //         .map(c => c.charCodeAt(0))
-  //     );
-  //     return bytes.buffer;
-  //     // const message = "abcdefg";
-  //     // console.log('unencrypted:', message);
-  //     // const result = await encryptFile(message, sessionKey);
-  //     // setEncryptedData({
-  //     //   sessionKey,
-  //     //   iv: result.iv,
-  //     //   ciphertext: result.ciphertext
-  //     // });
-
-  //     // console.log('encrypted paper', message);
-
-  //     // console.log('Encrypted:', {
-  //     //   key: sessionKey,  // Securely store this!
-  //     //   iv: result.iv,
-  //     //   ciphertext: result.ciphertext
-  //     // });
-  //   }
-  //   // try {
-
-  //   //   encryptFile();
-  //   //   console.log("Encrypting paper...");
-  //   //   // Simulate upload
-  //   //   toast.success("File encrypted successfully!");
-  //   //   setIsEncrypted(true); // toggle to show next button
-  //   // } catch (error) {
-  //   //   console.error("Encryption failed", error);
-  //   //   toast.error("Encryption failed. Please try again.");
-  //   // }
-  // };
 
   const submitHandler = () => {
     if (!validateForm()) return;
@@ -409,9 +152,9 @@ async function encryptDecryptAndDownload() {
 
   const validateForm = () => {
     if (
-      !formData.subjectCode ||
-      !formData.year ||
-      !formData.session ||
+      !formData.subject ||
+      // !formData.year ||
+      !formData.exam_type ||
       !formData.file
     ) {
       alert("Please fill out all fields and upload a paper before proceeding.");
@@ -427,29 +170,29 @@ async function encryptDecryptAndDownload() {
         {/* Subject Dropdown */}
         <div>
           <label
-            htmlFor="subjectCode"
+            htmlFor="subject"
             className="block text-gray-800 text-[19px] font-medium mb-1"
           >
             Subject Code
           </label>
           <select
-            id="subjectCode"
-            name="subjectCode"
-            value={formData.subjectCode}
+            id="subject"
+            name="subject"
+            value={formData.subject}
             onChange={handleChange}
             className="w-full border border-gray-300 cursor-pointer rounded px-3 py-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="">Select Subject</option>
-            {filterOptions.subjects.map((subject) => (
-              <option key={subject} value={subject}>
-                {subject}
+            {subjects.map((curr_subject) => (
+              <option key={curr_subject.name} value={curr_subject.subject_id}>
+                {curr_subject.name}
               </option>
             ))}
           </select>
         </div>
 
         {/* Year Dropdown */}
-        <div>
+        {/* <div>
           <label
             htmlFor="year"
             className="block text-gray-800 text-[19px] font-medium mb-1"
@@ -470,20 +213,20 @@ async function encryptDecryptAndDownload() {
               </option>
             ))}
           </select>
-        </div>
+        </div> */}
 
         {/* Session Dropdown */}
         <div>
           <label
-            htmlFor="session"
+            htmlFor="exam_type"
             className="block text-gray-800 text-[19px] font-medium mb-1"
           >
             Session
           </label>
           <select
-            id="session"
-            name="session"
-            value={formData.session}
+            id="exam_type"
+            name="exam_type"
+            value={formData.exam_type}
             onChange={handleChange}
             className="w-full border border-gray-300 cursor-pointer rounded px-3 py-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
@@ -530,7 +273,7 @@ async function encryptDecryptAndDownload() {
           {selectedFile && !isEncrypted && (
             <button
               type="button"
-              onClick={encryptDecryptAndDownload}
+              onClick={encryptPaper}
               className="px-6 py-2 bg-yellow-500 hover:bg-yellow-600 active:scale-95 transition-all text-white rounded"
             >
               Encrypt Paper
@@ -540,7 +283,7 @@ async function encryptDecryptAndDownload() {
           {isEncrypted && (
             <button
               type="button"
-              onClick={submitHandler}
+              onClick={signPaper}
               className="px-6 py-2 bg-indigo-500 hover:bg-indigo-600 active:scale-95 transition-all text-white rounded"
             >
               Sign and Upload
