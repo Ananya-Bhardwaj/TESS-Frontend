@@ -39,7 +39,7 @@ const UploadPaper = () => {
   };
 
 
-// const ec = new EC('secp256k1'); // Initialize elliptic curve
+const ec = new EC('secp256k1'); // Initialize elliptic curve
 
 // async function encryptSignAndDownload(selectedFile) {
 //   try {
@@ -277,7 +277,7 @@ async function encryptDecryptAndDownload() {
     // Also show Base64 version
     const hashBase64 = btoa(String.fromCharCode(...new Uint8Array(hashBuffer)));
     console.log('SHA-256 Hash (Base64):', hashBase64);
-    return hashBuffer;
+    return hashHex;
   }
 
   // ye abhi work kar rhi ispe not working filhaal
