@@ -570,10 +570,10 @@ export function signatureGeneration(facultyPrivateKey, message) {
 export function generatePolynomialAndCommitments(t) {
   const coefficients = [];
 
-  console.log(`\n--- Generating Polynomial of degree ${t - 1} ---`);
+  console.log(\n--- Generating Polynomial of degree ${t - 1} ---);
   for (let i = 1; i < t; i++) {
     const coeff = BigInt(Math.floor(Math.random() * Number(order)));
-    console.log(`Coefficient a_${i} = ${coeff}`);
+    console.log(Coefficient a_${i} = ${coeff});
     coefficients.push(coeff);
   }
 
@@ -594,10 +594,15 @@ export function evaluatePolynomial(coefficients, x) {
   console.log(`\n--- Evaluating Polynomial at x = ${x} ---`);
 
   coefficients.forEach((coeff, i) => {
-    result += coeff * BigInt(x) ** BigInt(i);
+    const term = coeff * BigInt(x) ** BigInt(i);
+    console.log(`Term a_${i} * x^${i} = ${coeff} * ${x}^${i} = ${term}`);
+    result += term;
   });
 
-  return result % order;
+  const modResult = result % order;
+  console.log(`Polynomial Result mod order = ${modResult}`);
+
+  return modResult;
 }
 
 // import { CryptoStorage} from "@webcrypto/storage";
@@ -690,7 +695,9 @@ export async function retrieveECCKey(){
   return extractECCKeyFromJWK(retrieved); 
 }
 
-export async function verify(hash) {
+export async function verify(pubKey, signature, ciphertext) {
+    const keyPair = ec.keyFromPublic(pubKey, 'hex');
+    const hashedCiphertext = await hashCiphertext(ciphertext);
   
     // 3. Verify Signature
     const isValid = keyPair.verify(hashedCiphertext, signature);
@@ -730,3 +737,170 @@ export const symmetricDecryption = (ciphertext, sessionKey, ivBase64) => {
     console.log(err)
   }
 }
+
+
+export function generateShares(participantCount, threshold) {
+  // Each participant generates their own polynomial
+  const coefficients = Array.from({ length: threshold }, () =>
+    EC.genKeyPair().getPrivate().toString(16)
+  );
+
+  // Generate shares for all participants
+  const shares = {};
+  for (let i = 1; i <= participantCount; i++) {
+    shares[i] = evaluatePolynomial(coefficients, i);
+  }
+
+  // Generate verification points (commitments)
+  const commitments = coefficients.map(coeff =>
+    G.mul(new EC.keyFromPrivate(coeff, 'hex').getPrivate())
+  );
+
+  return { shares, commitments };
+}
+
+function evaluatePolynomial(coefficients, x) {
+  return coefficients.reduce((sum, coeff, idx) => {
+    const term = new EC.keyFromPrivate(coeff, 'hex').getPrivate()
+      .mul(new BN(x).pow(new BN(idx)));
+    return sum.add(term);
+  }, new BN(0)).umod(n);
+}
+
+// // Combine public keys to get joint public key
+export function combinePublicKeys(publicKeys) {
+  return publicKeys.reduce((Q, pubKey) =>
+    Q.add(EC.keyFromPublic(pubKey, 'hex').getPublic()),
+    G.mul(new BN(0)) // Start with infinity point
+  );
+}
+
+function generateRandomScalar() {
+  // Fallback to window.crypto if available, otherwise use Math.random
+  const crypto = window.crypto || window.msCrypto;
+  let randomBytes;
+
+  if (crypto && crypto.getRandomValues) {
+    randomBytes = new Uint8Array(32);
+    crypto.getRandomValues(randomBytes);
+    console.log('Using crypto.getRandomValues');
+  } else {
+    console.warn('Using Math.random fallback - less secure!');
+    randomBytes = new Uint8Array(32);
+    for (let i = 0; i < 32; i++) {
+      randomBytes[i] = Math.floor(Math.random() * 256);
+    }
+  }
+
+  const k = new BN(randomBytes).umod(order.subn(1)); // 0 to p-2
+  console.log('Generated k:', k.toString(16));
+  return k;
+}
+
+
+
+export function reconstructKey(shareMap, t) {
+  console.group("🔑 Threshold Key Reconstruction");
+  console.log(Reconstructing with threshold t=${t});
+
+  // Convert share map to array [share1, share2,...]
+  const shares = Object.values(shareMap);
+  const participantIds = Object.keys(shareMap).map(Number);
+
+  console.assert(
+    shares.length >= t,
+    Need at least ${t} shares, got ${shares.length}
+  );
+
+  let reconKey = new BN(0);
+  console.log("Initial reconstructed key:", reconKey.toString());
+
+  // Select first t participants for reconstruction
+  const selectedParticipants = participantIds.slice(0, t);
+  console.log("Using participants:", selectedParticipants);
+
+  for (const j of selectedParticipants) {
+    console.group(Processing Participant ${j}'s share:);
+    console.log("Share value:", shareMap[j].toString());
+
+    // Compute Lagrange coefficient
+    let numerator = new BN(1);
+    let denominator = new BN(1);
+
+    for (const h of selectedParticipants) {
+      if (h !== j) {
+        const hBN = new BN(h);
+        const jBN = new BN(j);
+
+        numerator = numerator.mul(hBN);
+        denominator = denominator.mul(hBN.sub(jBN));
+
+        console.log(`  h=${h}:`);
+        console.log(`    numerator = ${numerator.toString()}`);
+        console.log(`    denominator = ${denominator.toString()}`);
+      }
+    }
+
+    // Compute denominator's modular inverse
+    const invDenominator = denominator.invm(order);
+    console.log("Denominator inverse:", invDenominator.toString());
+
+    // Final Lagrange coefficient
+    const lj = numerator.mul(invDenominator).umod(order);
+    console.log(Lagrange coefficient l_${j}:, lj.toString());
+
+    // Add weighted share
+    const weightedShare = shareMap[j].mul(lj).umod(order);
+    reconKey = reconKey.add(weightedShare).umod(order);
+
+    console.log(Current reconstructed key:, reconKey.toString());
+    console.groupEnd();
+  }
+
+  console.log("Final reconstructed key:", reconKey.toString());
+  console.groupEnd();
+  return reconKey;
+}
+
+
+// export function asymmetricDecrypt(secKey, cipher) {
+//   try {
+//     // 1. Parse inputs
+//     const secretKey = typeof secKey === "string" ? new BN(secKey, 16) : secKey;
+//     const C1 = EC.curve.point(new BN(cipher.C1.x, 16), new BN(cipher.C1.y, 16));
+//     const C2 = new BN(cipher.C2, 16);
+
+//     // 2. Compute shared secret H = secretKey * C1
+//     const H = C1.mul(secretKey);
+
+//     // 3. Recover message BN = (C2 - H.x) mod order
+//     const messageBN = C2.sub(H.getX()).umod(order);
+
+//     // 4. Convert BN to Uint8Array (32 bytes, big-endian)
+//     const messageBytes = new Uint8Array(32);
+//     const hexStr = messageBN.toString(16).padStart(64, "0");
+
+//     for (let i = 0; i < 32; i++) {
+//       messageBytes[i] = parseInt(hexStr.substr(i * 2, 2), 16);
+//     }
+
+//     // 5. Convert to Base64
+//     let binary = "";
+//     messageBytes.forEach((byte) => (binary += String.fromCharCode(byte)));
+//     return btoa(binary);
+//   } catch (error) {
+//     throw new Error(Decryption failed: ${error.message});
+//   }
+// }
+
+// function generateRandomScalar() {
+//   const bytes = new Uint8Array(32);
+//   if (typeof window !== "undefined" && window.crypto) {
+//     window.crypto.getRandomValues(bytes);
+//   } else {
+//     for (let i = 0; i < 32; i++) {
+//       bytes[i] = Math.floor(Math.random() * 256);
+//     }
+//   }
+//   return new BN(bytes).umod(order.subn(1));
+// }
