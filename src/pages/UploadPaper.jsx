@@ -1,17 +1,39 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { filterOptions } from "../assets/assets";
 import { toast } from "react-toastify";
+import { generateSessionKey, symmetricDecryption} from "../utils";
+import CryptoJS from "crypto-js";
+import { ec, ec as EC } from 'elliptic';
+import { sign, verify, symmtericEncryption, hashCiphertext } from "../utils"; 
+import axios from "axios";
+import { fetchSubjects } from "../data";
 
 const UploadPaper = () => {
+  const [subjects, setSubjects] = useState([]); 
   const [selectedFile, setSelectedFile] = useState(null);
   const [isEncrypted, setIsEncrypted] = useState(false);
+  const [encryptedData, setEncryptedData] = useState(null);
 
   const [formData, setFormData] = useState({
-    subjectCode: "",
-    year: "",
-    session: "",
+    subject: "",
+    // year: "",
+    exam_type: "",
     file: null,
   });
+
+  useEffect(() => {
+    //set subjects and get the data from fetchSubjects function
+    const fetchData = async () => {
+      try {
+        const data = await fetchSubjects();
+        setSubjects(data);
+      } catch (error) {
+        console.error("Error fetching subjects:", error);
+      }
+    };
+    fetchData();
+
+  }, [])
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -27,43 +49,98 @@ const UploadPaper = () => {
 
   const handleCancel = () => {
     setFormData({
-      subjectCode: "",
-      year: "",
-      session: "",
+      subject: "",
+      // year: "",
+      exam_type: "",
       file: null,
     });
   };
 
-  const encryptPaper = () =>{
-    console.log("paper encryption logic here");
+// async function encryptDecryptAndDownload() {
+//   encryptedData = symmtericEncryption(selectedFile)
+
+//   //send encryptedData to db 
+
+//   const hashPaper = hashCiphertext(ciphertext);
+//   console.log(hashPaper);
+
+//       //4.5 signature ka func called here neeche defined hai
+//       signAndVerify(hashPaper);
+
+
+//       // 5. Decrypt (for verification)
+//       const bytes = symmetricDecryption(ciphertext, sessionKey);
+      
+//       // const decryptedBlob = new Blob([bytes.buffer], { type: selectedFile.type });
+//       // const decryptedUrl = URL.createObjectURL(decryptedBlob);
+//       // const decryptedLink = document.createElement('a');
+//       // decryptedLink.href = decryptedUrl;
+//       // decryptedLink.download = `decrypted_${selectedFile.name}`;
+//       // document.body.appendChild(decryptedLink);
+//       // decryptedLink.click();
+  
+//       // Cleanup
+//       setTimeout(() => {
+//         document.body.removeChild(encryptedLink);
+//         document.body.removeChild(decryptedLink);
+//         URL.revokeObjectURL(encryptedUrl);
+//         URL.revokeObjectURL(decryptedUrl);
+//       }, 200);
+  
+//       return {
+//         sessionKey: sessionKey.toString(),
+//         iv: ivBase64,
+//         originalFilename: selectedFile.name
+//       };
+  
+//     } catch (error) {
+//       console.error("File processing failed:", error);
+//       throw error;
+//     }
+//   }
+
+  const encryptPaper = async() => {
+    try{
+      const data = await symmtericEncryption(selectedFile); 
+      setEncryptedData(data); 
+      setIsEncrypted(true); 
+    }catch(err){
+      console.error("File processing failed:", err);
+      throw err;
+    }
   }
 
-  const encryptHandler = () => {
-    // Your encryption logic here
-    if (!validateForm()) return;
-    // Proceed with encryption
+  const signPaper = async () => {
     try {
-      encryptPaper();
-      console.log("encrypting paper...");
-      // Simulate upload
-      toast.success("File encrypted successfully!");
-      setIsEncrypted(true); // toggle to show next button
-    } catch (error) {
-      console.error("Encryption failed", error);
-      toast.error("Encryption failed. Please try again.");
-    }
-  };
+      const derSignature = await sign(encryptedData.ciphertext); 
+      
+      setFormData((prev) => ({ ...prev, sign: derSignature, ciphertext: encryptedData.ciphertext }));
+     
+      const token = localStorage.getItem("token");
 
-  const signPaper = () => {
-    // Your signing logic here
-    console.log("Signing paper...");
-  };
+      //upload to db 
+      const response = await axios.post('http://localhost:5000/api/papers', formData, {
+        headers: {
+          Authorization: `Bearer ${token}`, // Include the token in the Authorization header
+        },
+      }); 
+
+      console.log("File signed and uploaded successfully:", response.data);
+      toast.success("File signed and uploaded successfully!");
+
+    }catch(err){
+      console.error("Error signing file", err); 
+      toast.error("Error signing file. Please try again.");
+      throw err; 
+    }
+  }
+
 
   const submitHandler = () => {
     if (!validateForm()) return;
     // Proceed with signing and uploading
     try {
-      signPaper();
+      signatureGeneration();
       console.log("Uploading paper...");
       // Simulate upload
       toast.success("File uploaded successfully!");
@@ -75,14 +152,15 @@ const UploadPaper = () => {
 
   const validateForm = () => {
     if (
-      !formData.subjectCode ||
-      !formData.year ||
-      !formData.session ||
+      !formData.subject ||
+      // !formData.year ||
+      !formData.exam_type ||
       !formData.file
     ) {
       alert("Please fill out all fields and upload a paper before proceeding.");
       return false;
     }
+
     return true;
   };
 
@@ -92,29 +170,29 @@ const UploadPaper = () => {
         {/* Subject Dropdown */}
         <div>
           <label
-            htmlFor="subjectCode"
+            htmlFor="subject"
             className="block text-gray-800 text-[19px] font-medium mb-1"
           >
             Subject Code
           </label>
           <select
-            id="subjectCode"
-            name="subjectCode"
-            value={formData.subjectCode}
+            id="subject"
+            name="subject"
+            value={formData.subject}
             onChange={handleChange}
             className="w-full border border-gray-300 cursor-pointer rounded px-3 py-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="">Select Subject</option>
-            {filterOptions.subjects.map((subject) => (
-              <option key={subject} value={subject}>
-                {subject}
+            {subjects.map((curr_subject) => (
+              <option key={curr_subject.name} value={curr_subject.subject_id}>
+                {curr_subject.name}
               </option>
             ))}
           </select>
         </div>
 
         {/* Year Dropdown */}
-        <div>
+        {/* <div>
           <label
             htmlFor="year"
             className="block text-gray-800 text-[19px] font-medium mb-1"
@@ -135,20 +213,20 @@ const UploadPaper = () => {
               </option>
             ))}
           </select>
-        </div>
+        </div> */}
 
         {/* Session Dropdown */}
         <div>
           <label
-            htmlFor="session"
+            htmlFor="exam_type"
             className="block text-gray-800 text-[19px] font-medium mb-1"
           >
             Session
           </label>
           <select
-            id="session"
-            name="session"
-            value={formData.session}
+            id="exam_type"
+            name="exam_type"
+            value={formData.exam_type}
             onChange={handleChange}
             className="w-full border border-gray-300 cursor-pointer rounded px-3 py-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
@@ -195,7 +273,7 @@ const UploadPaper = () => {
           {selectedFile && !isEncrypted && (
             <button
               type="button"
-              onClick={encryptHandler}
+              onClick={encryptPaper}
               className="px-6 py-2 bg-yellow-500 hover:bg-yellow-600 active:scale-95 transition-all text-white rounded"
             >
               Encrypt Paper
@@ -205,7 +283,7 @@ const UploadPaper = () => {
           {isEncrypted && (
             <button
               type="button"
-              onClick={submitHandler}
+              onClick={signPaper}
               className="px-6 py-2 bg-indigo-500 hover:bg-indigo-600 active:scale-95 transition-all text-white rounded"
             >
               Sign and Upload
