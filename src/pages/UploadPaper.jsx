@@ -209,12 +209,12 @@ const UploadPaper = () => {
         type: "application/json",
       });
 
-      // const encryptedUrl = URL.createObjectURL(encryptedBlob);
-      // const encryptedLink = document.createElement('a');
-      // encryptedLink.href = encryptedUrl;
-      // encryptedLink.download = `encrypted_${selectedFile.name}.json`;
-      // document.body.appendChild(encryptedLink);
-      // encryptedLink.click();
+      const encryptedUrl = URL.createObjectURL(encryptedBlob);
+      const encryptedLink = document.createElement('a');
+      encryptedLink.href = encryptedUrl;
+      encryptedLink.download = `encrypted_${selectedFile.name}.json`;
+      document.body.appendChild(encryptedLink);
+      encryptedLink.click();
 
       const hashPaper = hashCiphertext(ciphertext);
       console.log(hashPaper);
@@ -301,7 +301,7 @@ const UploadPaper = () => {
       document.body.appendChild(decryptedLink);
       decryptedLink.click();
 
-      Cleanup
+      //Cleanup
       setTimeout(() => {
         document.body.removeChild(encryptedLink);
         document.body.removeChild(decryptedLink);
@@ -345,7 +345,7 @@ const UploadPaper = () => {
     return hashHex;
   }
 
-  // ye abhi work kar rhi ispe not working filhaal
+  // works
   async function signAndVerify(hash) {
     console.log("=== Starting ECDSA Process ===");
     const hashedCiphertext = await Promise.resolve(hash);

@@ -10,41 +10,41 @@ const G = EC.g; // Base generator point
 const order = EC.curve.n; // Curve order
 
 // // Distributed Key Generation (DKG) - Feldman VSS
-// export function generateShares(participantCount, threshold) {
-//   // Each participant generates their own polynomial
-//   const coefficients = Array.from({ length: threshold }, () =>
-//     EC.genKeyPair().getPrivate().toString(16)
-//   );
+export function generateShares(participantCount, threshold) {
+  // Each participant generates their own polynomial
+  const coefficients = Array.from({ length: threshold }, () =>
+    EC.genKeyPair().getPrivate().toString(16)
+  );
 
-//   // Generate shares for all participants
-//   const shares = {};
-//   for (let i = 1; i <= participantCount; i++) {
-//     shares[i] = evaluatePolynomial(coefficients, i);
-//   }
+  // Generate shares for all participants
+  const shares = {};
+  for (let i = 1; i <= participantCount; i++) {
+    shares[i] = evaluatePolynomial(coefficients, i);
+  }
 
-//   // Generate verification points (commitments)
-//   const commitments = coefficients.map(coeff =>
-//     G.mul(new EC.keyFromPrivate(coeff, 'hex').getPrivate())
-//   );
+  // Generate verification points (commitments)
+  const commitments = coefficients.map(coeff =>
+    G.mul(new EC.keyFromPrivate(coeff, 'hex').getPrivate())
+  );
 
-//   return { shares, commitments };
-// }
+  return { shares, commitments };
+}
 
-// function evaluatePolynomial(coefficients, x) {
-//   return coefficients.reduce((sum, coeff, idx) => {
-//     const term = new EC.keyFromPrivate(coeff, 'hex').getPrivate()
-//       .mul(new BN(x).pow(new BN(idx)));
-//     return sum.add(term);
-//   }, new BN(0)).umod(n);
-// }
+function evaluatePolynomial(coefficients, x) {
+  return coefficients.reduce((sum, coeff, idx) => {
+    const term = new EC.keyFromPrivate(coeff, 'hex').getPrivate()
+      .mul(new BN(x).pow(new BN(idx)));
+    return sum.add(term);
+  }, new BN(0)).umod(n);
+}
 
 // // Combine public keys to get joint public key
-// export function combinePublicKeys(publicKeys) {
-//   return publicKeys.reduce((Q, pubKey) =>
-//     Q.add(EC.keyFromPublic(pubKey, 'hex').getPublic()),
-//     G.mul(new BN(0)) // Start with infinity point
-//   );
-// }
+export function combinePublicKeys(publicKeys) {
+  return publicKeys.reduce((Q, pubKey) =>
+    Q.add(EC.keyFromPublic(pubKey, 'hex').getPublic()),
+    G.mul(new BN(0)) // Start with infinity point
+  );
+}
 
 //generate session key
 export function generateSessionKey() {
@@ -209,118 +209,118 @@ export function decryptFile() {
 //   return { C1, C2 };
 // }
 
-// export function asymmetricEncryption(pubKey, message) {
-//   console.group('🔐 Threshold Encryption Process');
+export function asymmetricEncryption(pubKey, message) {
+  console.group('🔐 Threshold Encryption Process');
 
-//   // 1. Generate random k (browser-compatible)
-//   const k = generateRandomScalar();
-//   console.log('Random scalar k:', k.toString(16));
-//   console.assert(k.lt(order), 'k must be less than curve order');
+  // 1. Generate random k (browser-compatible)
+  const k = generateRandomScalar();
+  console.log('Random scalar k:', k.toString(16));
+  console.assert(k.lt(order), 'k must be less than curve order');
 
-//   // 2. Compute C1 = k*G
-//   const C1 = G.mul(k);
-//   console.log('C1 point:',
-//     `x: ${C1.getX().toString(16)}`,
-//     `y: ${C1.getY().toString(16)}`
-//   );
+  // 2. Compute C1 = k*G
+  const C1 = G.mul(k);
+  console.log('C1 point:',
+    `x: ${C1.getX().toString(16)}`,
+    `y: ${C1.getY().toString(16)}`
+  );
 
-//   // 3. Compute H = k*pubKey
-//   const H = pubKey.mul(k);
-//   console.log('H point:',
-//     `x: ${H.getX().toString(16)}`,
-//     `y: ${H.getY().toString(16)}`
-//   );
-//   const Hy = H.getY();
-//   console.log('H.y coordinate:', Hy.toString(16));
+  // 3. Compute H = k*pubKey
+  const H = pubKey.mul(k);
+  console.log('H point:',
+    `x: ${H.getX().toString(16)}`,
+    `y: ${H.getY().toString(16)}`
+  );
+  const Hy = H.getY();
+  console.log('H.y coordinate:', Hy.toString(16));
 
-//   // 4. Compute C2 = (message + H.y) mod order
-//   const msgBN = new BN(message);
-//   console.log('Original message:', msgBN.toString());
-//   const C2 = msgBN.add(Hy).umod(order);
-//   console.log('C2 value:', C2.toString(16));
+  // 4. Compute C2 = (message + H.y) mod order
+  const msgBN = new BN(message);
+  console.log('Original message:', msgBN.toString());
+  const C2 = msgBN.add(Hy).umod(order);
+  console.log('C2 value:', C2.toString(16));
 
-//   console.groupEnd();
-//   return { C1, C2 };
-// }
+  console.groupEnd();
+  return { C1, C2 };
+}
 
-// // Browser-compatible random scalar generation
-// function generateRandomScalar() {
-//   // Fallback to window.crypto if available, otherwise use Math.random
-//   const crypto = window.crypto || window.msCrypto;
-//   let randomBytes;
+// Browser-compatible random scalar generation
+function generateRandomScalar() {
+  // Fallback to window.crypto if available, otherwise use Math.random
+  const crypto = window.crypto || window.msCrypto;
+  let randomBytes;
 
-//   if (crypto && crypto.getRandomValues) {
-//     randomBytes = new Uint8Array(32);
-//     crypto.getRandomValues(randomBytes);
-//     console.log('Using crypto.getRandomValues');
-//   } else {
-//     console.warn('Using Math.random fallback - less secure!');
-//     randomBytes = new Uint8Array(32);
-//     for (let i = 0; i < 32; i++) {
-//       randomBytes[i] = Math.floor(Math.random() * 256);
-//     }
-//   }
+  if (crypto && crypto.getRandomValues) {
+    randomBytes = new Uint8Array(32);
+    crypto.getRandomValues(randomBytes);
+    console.log('Using crypto.getRandomValues');
+  } else {
+    console.warn('Using Math.random fallback - less secure!');
+    randomBytes = new Uint8Array(32);
+    for (let i = 0; i < 32; i++) {
+      randomBytes[i] = Math.floor(Math.random() * 256);
+    }
+  }
 
-//   const k = new BN(randomBytes).umod(order.subn(1)); // 0 to p-2
-//   console.log('Generated k:', k.toString(16));
-//   return k;
-// }
+  const k = new BN(randomBytes).umod(order.subn(1)); // 0 to p-2
+  console.log('Generated k:', k.toString(16));
+  return k;
+}
 
-// // Helper to convert between formats
-// export function pointFromCoordinates(x, y) {
-//   return EC.curve.point(new BN(x, 16), new BN(y, 16));
-// }
+// Helper to convert between formats
+export function pointFromCoordinates(x, y) {
+  return EC.curve.point(new BN(x, 16), new BN(y, 16));
+}
 
 
-//THIS ONE DOES WORK BUT COMMENTING FOR NOW
-// export function asymmetricEncryption(pubKeyHex, sessionKey) {
-//   console.group("🔐 Threshold Encryption Process");
+// THIS ONE DOES WORK BUT COMMENTING FOR NOW
+export function asymmetricEncryption(pubKeyHex, sessionKey) {
+  console.group("🔐 Threshold Encryption Process");
 
-//   try {
-//     // 1. Validate and convert inputs
-//     console.log("Input session key:", sessionKey);
-//     const messageBN = validateAndConvertToBN(sessionKey);
-//     console.log("Converted message:", messageBN.toString());
+  try {
+    // 1. Validate and convert inputs
+    console.log("Input session key:", sessionKey);
+    const messageBN = validateAndConvertToBN(sessionKey);
+    console.log("Converted message:", messageBN.toString());
 
-//     // const pubKey = EC.keyFromPublic(pubKeyHex, 'hex').getPublic();
-//     // console.log('Public Key:', pointToString(pubKey));
+    // const pubKey = EC.keyFromPublic(pubKeyHex, 'hex').getPublic();
+    // console.log('Public Key:', pointToString(pubKey));
 
-//     // 2. Parse public key (handle both compressed and uncompressed formats)
-//     let pubKey;
-//     try {
-//       pubKey = EC.keyFromPublic(pubKeyHex, "hex").getPublic();
-//     } catch (e) {
-//       // If parsing fails, try prepending 04 for uncompressed format
-//       pubKey = EC.keyFromPublic("04" + pubKeyHex, "hex").getPublic();
-//     }
-//     console.log("Public Key:", pointToString(pubKey));
+    // 2. Parse public key (handle both compressed and uncompressed formats)
+    let pubKey;
+    try {
+      pubKey = EC.keyFromPublic(pubKeyHex, "hex").getPublic();
+    } catch (e) {
+      // If parsing fails, try prepending 04 for uncompressed format
+      pubKey = EC.keyFromPublic("04" + pubKeyHex, "hex").getPublic();
+    }
+    console.log("Public Key:", pointToString(pubKey));
 
-//     // 2. Generate random k (0 to order-2)
-//     const k = generateRandomScalar();
-//     console.log("Random k:", k.toString(16));
+    // 2. Generate random k (0 to order-2)
+    const k = generateRandomScalar();
+    console.log("Random k:", k.toString(16));
 
-//     // 3. Compute C1 = k*G
-//     const C1 = G.mul(k);
-//     console.log("C1 point:", pointToString(C1));
+    // 3. Compute C1 = k*G
+    const C1 = G.mul(k);
+    console.log("C1 point:", pointToString(C1));
 
-//     // 4. Compute H = k*pubKey
-//     const H = pubKey.mul(k);
-//     console.log("H point:", pointToString(H));
+    // 4. Compute H = k*pubKey
+    const H = pubKey.mul(k);
+    console.log("H point:", pointToString(H));
 
-//     // 5. Compute C2 = (message + H.y) mod order
-//     const C2 = messageBN.add(H.getX()).umod(order);
-//     console.log("C2 value:", C2.toString(16));
+    // 5. Compute C2 = (message + H.y) mod order
+    const C2 = messageBN.add(H.getX()).umod(order);
+    console.log("C2 value:", C2.toString(16));
 
-//     console.groupEnd();
-//     return {
-//       C1: pointToObject(C1),
-//       C2: C2.toString(16),
-//     };
-//   } catch (error) {
-//     console.error("Encryption failed:", error);
-//     throw new Error(`Encryption error: ${error.message}`);
-//   }
-// }
+    console.groupEnd();
+    return {
+      C1: pointToObject(C1),
+      C2: C2.toString(16),
+    };
+  } catch (error) {
+    console.error("Encryption failed:", error);
+    throw new Error(`Encryption error: ${error.message}`);
+  }
+}
 
 // Helper functions
 
