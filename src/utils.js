@@ -4,6 +4,7 @@ import crypto from "crypto";
 import { ec as EC } from "elliptic";
 import { BN } from "bn.js";
 import CryptoJS from "crypto-js";
+import * as jose from 'jose';
 
 const ec = new EC("secp256k1");
 var key = ec.genKeyPair();
@@ -301,4 +302,29 @@ export function signPaper() {
 }
 export function verifyPaper() {
   console.log("paper verified");
+}
+
+// function stringToUint8Array(str) {
+//   const bytes = [];
+//   for (let i = 0; i < str.length; i++) {
+//     bytes.push(str.charCodeAt(i));
+//   }
+//   return new Uint8Array(bytes);
+// }
+
+export async function generateKeyPair() {
+  const key = ec.genKeyPair();
+  const pubKey = key.getPublic('hex');
+  const privKey = key.getPrivate('hex');
+
+  const pubArray = Uint8Array.fromHex(pubKey); 
+  const privArray = Uint8Array.fromHex(privKey);
+
+  const privateJwk = await jose.exportJWK(pubArray)
+  const publicJwk = await jose.exportJWK(privArray)
+
+  console.log(privateJwk)
+  console.log(publicJwk)
+  
+
 }

@@ -1,8 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../providers/AuthProvider";
 
 const Navbar = () => {
   const [open, setOpen] = useState(false);
+
+  const { user, logout } = useAuth(); 
+
   return (
     <nav className="flex items-center justify-between px-6 md:px-16 lg:px-24 xl:px-32 py-4 border-b border-gray-300 bg-white relative transition-all">
       <a href="#">
@@ -15,13 +19,26 @@ const Navbar = () => {
         {/* <Link to="/">About Us</Link>
         <Link to="/">Contact Us</Link> */}
 
-        <Link to='/login'>
-          <button 
-          className="cursor-pointer px-8 py-2 bg-indigo-500 hover:bg-indigo-600 transition text-white rounded-full"
-          >
-            Login
-          </button>
-        </Link>
+        {user?
+          (
+            <button 
+            className="cursor-pointer px-8 py-2 bg-indigo-500 hover:bg-indigo-600 transition text-white rounded-full"
+            onClick={logout}
+            >
+              Logout
+            </button>
+          ):(
+              <Link to='/login'>
+              <button 
+              className="cursor-pointer px-8 py-2 bg-indigo-500 hover:bg-indigo-600 transition text-white rounded-full"
+              >
+                Login
+              </button>
+            </Link>
+          ) 
+        }
+
+        
       </div>
 
       <button
