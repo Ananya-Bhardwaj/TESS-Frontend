@@ -1,16 +1,18 @@
 import React, { useState } from "react";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { decryptFile } from "../utils";
 import CryptoJS from "crypto-js";
 
-const ExamPaperCard = ({ subjectCode, year, session }) => {
+const ExamPaperCard = ({ subjectCode, year, session, paperId }) => {
   const [isVerified, setIsVerified] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   // const [decryptedData, setDecryptedData] = useState("");
   // const [isDecrypting, setIsDecrypting] = useState(false);
 
   const handleVerification = () => {
+    //for verification, user's public key is used
+    //fetch signature and ciphertext
+    
     setIsLoading(true);
     setTimeout(() => {
       const verificationPassed = Math.random() > 0.2; // 80% pass
@@ -118,7 +120,7 @@ const ExamPaperCard = ({ subjectCode, year, session }) => {
   // }
 
   return (
-    <div className="max-w-sm rounded overflow-hidden shadow-lg bg-white p-6 m-4">
+    <div className="max-w-sm rounded overflow-hidden shadow-lg bg-white p-6 m-4 w-60">
       <div className="text-center">
         <h2 className="text-2xl font-bold text-gray-800 mb-1">{subjectCode}</h2>
         <p className="text-lg text-gray-600 mb-1">{year}</p>

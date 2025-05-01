@@ -10,8 +10,6 @@ const ec = new EC("secp256k1");
 var key = ec.genKeyPair();
 
 
-
-
 //generate session key
 export function generateSessionKey() {
   // Generate 256-bit (32-byte) random key
@@ -20,143 +18,78 @@ export function generateSessionKey() {
   // Convert to Base64 for easier storage/transmission
   const sessionKeyBase64 = CryptoJS.enc.Base64.stringify(sessionKey);
 
-  console.log("Generated session key:", sessionKeyBase64);
-  console.log("key 2:", sessionKey.toString(CryptoJS.enc.Base64));
   return sessionKey.toString(CryptoJS.enc.Base64);
   // return sessionKeyBase64;
 }
 
-//encrypt file
-/**
- * Encrypts a file (as ArrayBuffer/Blob) using AES-256-CBC
- * @param {ArrayBuffer} fileData - Raw file data
- * @param {string} sessionKeyBase64 - Base64-encoded AES key
- * @returns {Object} { iv: string, ciphertext: string }
- */
-export async function encryptFile(fileData, sessionKeyBase64) {
-  // Convert Base64 key back to CryptoJS format
-  const key = CryptoJS.enc.Base64.parse(sessionKeyBase64);
+export const symmtericEncryption = async (selectedFile) => {
+  try {
+    const sessionKey = generateSessionKey();
+    
+    // 1. Read file data
+    const fileData = await selectedFile.arrayBuffer();
 
-  // Generate a random IV (Initialization Vector)
-  const iv = CryptoJS.lib.WordArray.random(16); // 128-bit IV for AES-CBC
+    // 2. Convert to CryptoJS WordArray
+    const wordArray = CryptoJS.lib.WordArray.create(new Uint8Array(fileData));
 
-  // Convert file data to CryptoJS WordArray
-  const fileWordArray = CryptoJS.lib.WordArray.create(new Uint8Array(fileData));
-
-  // Encrypt with AES-256-CBC
-  const encrypted = CryptoJS.AES.encrypt(fileWordArray, key, {
-    iv: iv,
-    mode: CryptoJS.mode.CBC,
-    padding: CryptoJS.pad.Pkcs7,
-  });
-
-  return {
-    iv: iv.toString(CryptoJS.enc.Base64), // IV is needed for decryption
-    ciphertext: encrypted.toString(), // Base64-encoded encrypted file
-  };
-}
-
-//decryption of file
-export function decryptFile() {
-  const decrypted = CryptoJS.AES.decrypt(
-    "eWuJdcVoLpXCC+K9l4MUGw==",
-    CryptoJS.enc.Base64.parse("j5FOz+WCUOYJeHSu7zH/pAXF7clmiKvoPIayghz16J4="),
-    {
-      iv: CryptoJS.enc.Base64.parse("IgpqiJqhs7x3GQUp38Nmug=="),
+    // 3. Encrypt
+    const encrypted = CryptoJS.AES.encrypt(wordArray, sessionKey, {
       mode: CryptoJS.mode.CBC,
-    }
-  );
-  console.log("Test decryption:", decrypted.toString(CryptoJS.enc.Utf8));
+      padding: CryptoJS.pad.Pkcs7,
+    });
+    
+    const ciphertext = encrypted.toString();
+    const ivBase64 = encrypted.iv.toString(CryptoJS.enc.Base64);
+
+    const encryptedData = {
+      ciphertext,
+      iv: ivBase64,
+      filename: selectedFile.name
+    };
+
+    return encryptedData; 
+  }
+  catch (err){
+    console.log(err)
+  }
 }
-// export function decryptFile(ciphertextBase64, ivBase64, sessionKeyBase64) {
-//   // Input validation
-//   if (!ciphertextBase64 || !ivBase64 || !sessionKeyBase64) {
-//     throw new Error('Missing required decryption parameters');
-//   }
 
-//   try {
-//     // 1. Parse key and IV
-//     const key = CryptoJS.enc.Base64.parse(sessionKeyBase64);
-//     const iv = CryptoJS.enc.Base64.parse(ivBase64);
+export async function sign(ciphertext){
+  const hashedCiphertext = await hashCiphertext(ciphertext); 
 
-//     // 2. Decrypt
-//     const decrypted = CryptoJS.AES.decrypt(ciphertextBase64, key, {
-//       iv,
-//       mode: CryptoJS.mode.CBC,
-//       padding: CryptoJS.pad.Pkcs7
-//     });
+  // const hashedCiphertext = await Promise.resolve(hash);
 
-//     // 3. Convert to ArrayBuffer (optimized version)
-//     const latin1 = decrypted.toString(CryptoJS.enc.Latin1);
-//     const buffer = new ArrayBuffer(latin1.length);
-//     new Uint8Array(buffer).set(
-//       latin1.split('').map(c => c.charCodeAt(0))
-//     );
+  // 1. Generate Key Pair
+  const keyPair = ec.genKeyPair();
+  const privKey = keyPair.getPrivate('hex');
+  const pubKey = keyPair.getPublic('hex');
+  
+  // 2. Sign the Hash
+  const signature = keyPair.sign(hashedCiphertext, 'hex', {
+    canonical: true,
+  });
+  const derSignature = signature.toDER('hex');
+  
+  return derSignature; 
+}
 
-//     return buffer;
-//   } catch (error) {
-//     console.error('Decryption error:', error);
-//     throw new Error('Failed to decrypt file. Invalid key or corrupted data.');
-//   }
-// }
-
-// Initialize curve (e.g., 'secp256k1', 'p256', etc.)
 
 // const G = ec.g; // base point
 // const order = ec.n; // order of the curve
 
-// export function encryptFile(key, filename) {
-//   // Convert the key (a string or Buffer) to a usable encryption key and IV
-//   const algorithm = 'aes-256-cbc';
-//   const iv = crypto.randomBytes(16); // Initialization vector
+export async function hashCiphertext(ciphertext) {
+  // Convert Base64 ciphertext to ArrayBuffer
+  const binaryString = atob(ciphertext);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
 
-//   // Ensure the key is a 32-byte Buffer
-//   const encryptionKey = crypto.createHash('sha256').update(String(key)).digest();
+  const hashHex = CryptoJS.SHA256(bytes);
+  
+  return hashHex.toString(CryptoJS.enc.Hex); 
+}
 
-//   const cipher = crypto.createCipheriv(algorithm, encryptionKey, iv);
-
-//   // Read the original file
-//   const originalData = fs.readFileSync(filename);
-
-//   // Encrypt the data
-//   let encrypted = cipher.update(originalData);
-//   encrypted = Buffer.concat([encrypted, cipher.final()]);
-
-//   // Save the IV with the encrypted data (prepend IV to encrypted data)
-//   const encryptedWithIv = Buffer.concat([iv, encrypted]);
-
-//   // Write the encrypted file
-//   fs.writeFileSync(filename, encryptedWithIv);
-
-//   console.log('File encrypted successfully.');
-// }
-
-//symmetric decryption
-
-// export function decryptFile(filename, key) {
-//   const algorithm = 'aes-256-cbc';
-
-//   // Ensure the key is a 32-byte Buffer
-//   const encryptionKey = crypto.createHash('sha256').update(String(key)).digest();
-
-//   // Read the encrypted file
-//   const encryptedData = fs.readFileSync(filename);
-
-//   // Extract the IV from the beginning of the file (first 16 bytes)
-//   const iv = encryptedData.slice(0, 16);
-//   const encryptedContent = encryptedData.slice(16);
-
-//   const decipher = crypto.createDecipheriv(algorithm, encryptionKey, iv);
-
-//   // Decrypt the data
-//   let decrypted = decipher.update(encryptedContent);
-//   decrypted = Buffer.concat([decrypted, decipher.final()]);
-
-//   // Write the decrypted data back to the file
-//   fs.writeFileSync(filename, decrypted);
-
-//   console.log('File decrypted successfully.');
-// }
 
 //ananya ka code
 // export function asymmetricEncryption(pubKey, message) {
@@ -637,10 +570,10 @@ export function signatureGeneration(facultyPrivateKey, message) {
 export function generatePolynomialAndCommitments(t) {
   const coefficients = [];
 
-  console.log(`\n--- Generating Polynomial of degree ${t - 1} ---`);
+  console.log(\n--- Generating Polynomial of degree ${t - 1} ---);
   for (let i = 1; i < t; i++) {
     const coeff = BigInt(Math.floor(Math.random() * Number(order)));
-    console.log(`Coefficient a_${i} = ${coeff}`);
+    console.log(Coefficient a_${i} = ${coeff});
     coefficients.push(coeff);
   }
 
@@ -661,57 +594,313 @@ export function evaluatePolynomial(coefficients, x) {
   console.log(`\n--- Evaluating Polynomial at x = ${x} ---`);
 
   coefficients.forEach((coeff, i) => {
-    result += coeff * BigInt(x) ** BigInt(i);
+    const term = coeff * BigInt(x) ** BigInt(i);
+    console.log(`Term a_${i} * x^${i} = ${coeff} * ${x}^${i} = ${term}`);
+    result += term;
   });
 
-  return result % order;
+  const modResult = result % order;
+  console.log(`Polynomial Result mod order = ${modResult}`);
+
+  return modResult;
 }
 
-// export function generateSessionKey(){
-//   console.log("session key generated");
+// import { CryptoStorage} from "@webcrypto/storage";
+
+// export async function generateKeyPair() {
+
+//   const { publicKey, privateKey } = await jose.generateKeyPair('ES256', {"extractable": true})
+
+//   const privateJwk = await jose.exportJWK(privateKey)
+
+//   console.log(privateJwk)
+//   console.log(privateJwk.d)
+
+//   const ecPrivKey = ec.keyFromPrivate(privateJwk.d, 'hex').getPrivate('hex')
+
+//   console.log(ecPrivKey)
+
+//   //TODO; Add user_id/ password here
+//   const cryptoStore = new CryptoStorage('hello');
+
+//   const originalValue = privateKey;
+//   await cryptoStore.set('data_key', privateKey);
+
+
+//   const decryptedValue = await cryptoStore.get('data_key');
+//   console.log(typeof(decryptedValue))
+
+//   return privateJwk;
+
 // }
-export function encryptPaper() {
-  console.log("paper encrypted");
-}
-export function encryptSessionKey(sessionKey) {
-  //fetch public key from backend
-  let C1,
-    C2 = asymmetricEncryption(pubKey, sessionKey);
-}
-export function decryptPaper() {
-  console.log("paper decrypted");
-}
-export function decryptSessionKey() {
-  console.log("session key encrypted");
-}
-export function signPaper() {
-  console.log("paper signed");
-}
-export function verifyPaper() {
-  console.log("paper verified");
+
+function toBase64Url(bytes) {
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 }
 
-// function stringToUint8Array(str) {
-//   const bytes = [];
-//   for (let i = 0; i < str.length; i++) {
-//     bytes.push(str.charCodeAt(i));
-//   }
-//   return new Uint8Array(bytes);
-// }
+function hexToBase64Url(hex) {
+  const bytes = Uint8Array.from(hex.match(/.{1,2}/g).map(b => parseInt(b, 16)));
+  return toBase64Url(bytes);
+}
+
+function base64UrlToHex(base64url) {
+  const base64 = base64url
+    .replace(/-/g, '+')
+    .replace(/_/g, '/')
+    .padEnd(base64url.length + (4 - base64url.length % 4) % 4, '=');
+  const binary = atob(base64);
+  return Array.from(binary)
+    .map(c => ('0' + c.charCodeAt(0).toString(16)).slice(-2))
+    .join('');
+}
+
+import { storeKey, getKey } from "./indexed_db";
 
 export async function generateKeyPair() {
-  const key = ec.genKeyPair();
-  const pubKey = key.getPublic('hex');
-  const privKey = key.getPrivate('hex');
+  const keyPair = ec.genKeyPair();
+  const pub = keyPair.getPublic();
+  const priv = keyPair.getPrivate('hex');
 
-  const pubArray = Uint8Array.fromHex(pubKey); 
-  const privArray = Uint8Array.fromHex(privKey);
+  const jwk = {
+    kty: "EC",
+    crv: "P-256",
+    x: hexToBase64Url(pub.getX().toString('hex')),
+    y: hexToBase64Url(pub.getY().toString('hex')),
+    d: hexToBase64Url(priv.toString('hex')),
+  };
 
-  const privateJwk = await jose.exportJWK(pubArray)
-  const publicJwk = await jose.exportJWK(privArray)
 
-  console.log(privateJwk)
-  console.log(publicJwk)
+  await storeKey('my-ec-key', jwk);
   
+}
+
+export async function extractECCKeyFromJWK(jwk){
+  const privHex = base64UrlToHex(jwk.d);
+  const ECprivKey =  ec.keyFromPrivate(privHex, 'hex').getPrivate('hex');
+  return ECprivKey;
+}
+
+export async function importKey(jwk) {
+  
+  await storeKey('my-ec-key', jwk);
 
 }
+
+
+export async function retrieveECCKey(){
+  const retrieved = await getKey('my-ec-key');
+  return extractECCKeyFromJWK(retrieved); 
+}
+
+export async function verify(pubKey, signature, ciphertext) {
+    const keyPair = ec.keyFromPublic(pubKey, 'hex');
+    const hashedCiphertext = await hashCiphertext(ciphertext);
+  
+    // 3. Verify Signature
+    const isValid = keyPair.verify(hashedCiphertext, signature);
+    
+    console.log('Verification:');
+    console.log(`Signature Valid? ${isValid ? '✅ YES' : '❌ NO'}`);
+    console.log('\n=== Process Complete ===');
+  
+    return {
+      privateKey: privKey, // WARNING: For demo only - never expose in production!
+      publicKey: pubKey,
+      signature: derSignature,
+      isValid
+    };
+  }
+
+
+
+export const symmetricDecryption = (ciphertext, sessionKey, ivBase64) => {
+  try{
+    const decrypted = CryptoJS.AES.decrypt(ciphertext, sessionKey, {
+      iv: CryptoJS.enc.Base64.parse(ivBase64),
+      mode: CryptoJS.mode.CBC,
+      padding: CryptoJS.pad.Pkcs7
+    });
+
+    // 6. Convert to binary and download DECRYPTED file
+    const bytes = new Uint8Array(
+      decrypted.toString(CryptoJS.enc.Latin1)
+        .split('')
+        .map(c => c.charCodeAt(0))
+    );
+
+    return bytes; 
+  }
+  catch(err){
+    console.log(err)
+  }
+}
+
+
+export function generateShares(participantCount, threshold) {
+  // Each participant generates their own polynomial
+  const coefficients = Array.from({ length: threshold }, () =>
+    EC.genKeyPair().getPrivate().toString(16)
+  );
+
+  // Generate shares for all participants
+  const shares = {};
+  for (let i = 1; i <= participantCount; i++) {
+    shares[i] = evaluatePolynomial(coefficients, i);
+  }
+
+  // Generate verification points (commitments)
+  const commitments = coefficients.map(coeff =>
+    G.mul(new EC.keyFromPrivate(coeff, 'hex').getPrivate())
+  );
+
+  return { shares, commitments };
+}
+
+function evaluatePolynomial(coefficients, x) {
+  return coefficients.reduce((sum, coeff, idx) => {
+    const term = new EC.keyFromPrivate(coeff, 'hex').getPrivate()
+      .mul(new BN(x).pow(new BN(idx)));
+    return sum.add(term);
+  }, new BN(0)).umod(n);
+}
+
+// // Combine public keys to get joint public key
+export function combinePublicKeys(publicKeys) {
+  return publicKeys.reduce((Q, pubKey) =>
+    Q.add(EC.keyFromPublic(pubKey, 'hex').getPublic()),
+    G.mul(new BN(0)) // Start with infinity point
+  );
+}
+
+function generateRandomScalar() {
+  // Fallback to window.crypto if available, otherwise use Math.random
+  const crypto = window.crypto || window.msCrypto;
+  let randomBytes;
+
+  if (crypto && crypto.getRandomValues) {
+    randomBytes = new Uint8Array(32);
+    crypto.getRandomValues(randomBytes);
+    console.log('Using crypto.getRandomValues');
+  } else {
+    console.warn('Using Math.random fallback - less secure!');
+    randomBytes = new Uint8Array(32);
+    for (let i = 0; i < 32; i++) {
+      randomBytes[i] = Math.floor(Math.random() * 256);
+    }
+  }
+
+  const k = new BN(randomBytes).umod(order.subn(1)); // 0 to p-2
+  console.log('Generated k:', k.toString(16));
+  return k;
+}
+
+
+
+export function reconstructKey(shareMap, t) {
+  console.group("🔑 Threshold Key Reconstruction");
+  console.log(Reconstructing with threshold t=${t});
+
+  // Convert share map to array [share1, share2,...]
+  const shares = Object.values(shareMap);
+  const participantIds = Object.keys(shareMap).map(Number);
+
+  console.assert(
+    shares.length >= t,
+    Need at least ${t} shares, got ${shares.length}
+  );
+
+  let reconKey = new BN(0);
+  console.log("Initial reconstructed key:", reconKey.toString());
+
+  // Select first t participants for reconstruction
+  const selectedParticipants = participantIds.slice(0, t);
+  console.log("Using participants:", selectedParticipants);
+
+  for (const j of selectedParticipants) {
+    console.group(Processing Participant ${j}'s share:);
+    console.log("Share value:", shareMap[j].toString());
+
+    // Compute Lagrange coefficient
+    let numerator = new BN(1);
+    let denominator = new BN(1);
+
+    for (const h of selectedParticipants) {
+      if (h !== j) {
+        const hBN = new BN(h);
+        const jBN = new BN(j);
+
+        numerator = numerator.mul(hBN);
+        denominator = denominator.mul(hBN.sub(jBN));
+
+        console.log(`  h=${h}:`);
+        console.log(`    numerator = ${numerator.toString()}`);
+        console.log(`    denominator = ${denominator.toString()}`);
+      }
+    }
+
+    // Compute denominator's modular inverse
+    const invDenominator = denominator.invm(order);
+    console.log("Denominator inverse:", invDenominator.toString());
+
+    // Final Lagrange coefficient
+    const lj = numerator.mul(invDenominator).umod(order);
+    console.log(Lagrange coefficient l_${j}:, lj.toString());
+
+    // Add weighted share
+    const weightedShare = shareMap[j].mul(lj).umod(order);
+    reconKey = reconKey.add(weightedShare).umod(order);
+
+    console.log(Current reconstructed key:, reconKey.toString());
+    console.groupEnd();
+  }
+
+  console.log("Final reconstructed key:", reconKey.toString());
+  console.groupEnd();
+  return reconKey;
+}
+
+
+// export function asymmetricDecrypt(secKey, cipher) {
+//   try {
+//     // 1. Parse inputs
+//     const secretKey = typeof secKey === "string" ? new BN(secKey, 16) : secKey;
+//     const C1 = EC.curve.point(new BN(cipher.C1.x, 16), new BN(cipher.C1.y, 16));
+//     const C2 = new BN(cipher.C2, 16);
+
+//     // 2. Compute shared secret H = secretKey * C1
+//     const H = C1.mul(secretKey);
+
+//     // 3. Recover message BN = (C2 - H.x) mod order
+//     const messageBN = C2.sub(H.getX()).umod(order);
+
+//     // 4. Convert BN to Uint8Array (32 bytes, big-endian)
+//     const messageBytes = new Uint8Array(32);
+//     const hexStr = messageBN.toString(16).padStart(64, "0");
+
+//     for (let i = 0; i < 32; i++) {
+//       messageBytes[i] = parseInt(hexStr.substr(i * 2, 2), 16);
+//     }
+
+//     // 5. Convert to Base64
+//     let binary = "";
+//     messageBytes.forEach((byte) => (binary += String.fromCharCode(byte)));
+//     return btoa(binary);
+//   } catch (error) {
+//     throw new Error(Decryption failed: ${error.message});
+//   }
+// }
+
+// function generateRandomScalar() {
+//   const bytes = new Uint8Array(32);
+//   if (typeof window !== "undefined" && window.crypto) {
+//     window.crypto.getRandomValues(bytes);
+//   } else {
+//     for (let i = 0; i < 32; i++) {
+//       bytes[i] = Math.floor(Math.random() * 256);
+//     }
+//   }
+//   return new BN(bytes).umod(order.subn(1));
+// }
