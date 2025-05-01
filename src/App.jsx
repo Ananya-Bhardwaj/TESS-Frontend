@@ -1,5 +1,4 @@
 import React from "react";
-import { Routes, Route} from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Admin from "./pages/Admin";
@@ -11,24 +10,58 @@ import { ToastContainer } from "react-toastify";
 import Navbar from "./components/Navbar";
 import Layout from "./Layout"; 
 import Notification from "./Notification";
+import { Route, Routes } from "react-router-dom";
+import PrivateRoute from '../src/routes/PrivateRoute'
+import Unauthorized from "./pages/Unauthorized";
+// import { AuthProvider } from "./providers/AuthProvider";
+// import Routes from "./routes";
 
 function App() {
   return (
-    <div>
+    <>
       <ToastContainer/>
       <Layout>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/admin" element={<Admin />} />
-          <Route path="/faculty" element={<FacultyDashboard />} />
-          <Route path="/exam-div" element={<ExamDivDashboard />} />
-          <Route path="/upload" element={<UploadPaper />} />
-          <Route path="/" element={<HomePage />} />
-          <Route path="/notification" element={<Notification/>} />
-        </Routes>
-      </Layout>
-    </div>
+      <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route path="/" element={<HomePage/>}/>
+      {/* <Route path="/admin" 
+        element={
+          <PrivateRoute role="Admin">
+            <Admin />
+          </PrivateRoute>
+        }
+      /> */}
+      <Route path="/admin" 
+      element={
+        <Admin />
+      }/>
+      <Route path="/exam-dashboard" 
+        element={
+          <PrivateRoute role="Authority">
+            <ExamDivDashboard />
+          </PrivateRoute>
+        }
+      />
+      <Route path="/upload-paper"
+      element={
+        <PrivateRoute role="Faculty">
+          <UploadPaper />
+        </PrivateRoute>
+      }
+      />
+      <Route path="/faculty-dashboard"
+      element={
+        <PrivateRoute role="Faculty">
+          <FacultyDashboard />
+        </PrivateRoute>
+      }
+      />
+      <Route path="/unauthorized"
+      element={<Unauthorized />}
+      />
+    </Routes>
+    </Layout>
+    </>
   );
 }
 

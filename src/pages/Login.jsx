@@ -1,20 +1,82 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import axios from 'axios'; 
+import { useAuth } from "../providers/AuthProvider";
+import { replace, useNavigate } from "react-router-dom";
+import { fetchInstitutions } from "../data";
 
 const Login = () => {
   const [state, setState] = useState("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [institute, setInstitute] = useState("");
+  const [institutions, setInstitutions] = useState([]);
 
-  const onSubmit = async(e) => {
+  useEffect(() => {
+    const fetchData = async () => {
+        try {
+            const response = await fetchInstitutions();
+            setInstitutions(response); // Assuming the response contains the institutions data
+        } catch (error) {
+            console.error("Error fetching institutions:", error);
+        }
+    };
+    fetchData();
+  }, []);
+
+//   const { setToken} = useAuth(); 
+  const navigate = useNavigate();
+
+  const { user, login } = useAuth();
+
+  const handleSubmit = async(e) => {
     e.preventDefault(); 
+    try{
+        if (state==="login"){
+            //send email, password to backend for auth
+            let response = await axios.post("http://localhost:5000/api/users/login", 
+                {
+                    "email": email, 
+                    "password": password
+                }
+            )
+    
+            login(response.data.accessToken)
+            
+            setTimeout(() => {
+                if (user["role"]==="Faculty"){
+                    navigate('/upload-paper', {replace: true})
+                }
+                else if (user["role"]==="Authority"){
+                    navigate('/exam-dashboard', {replace: true})
+                }
+                else if (user["role"]==="Admin"){
+                    navigate('/admin', {replace: true})
+                }
+            }, 1500)
+                
+        }
+        else{
+            //send name, email, password
 
-    if (state==="login"){
-        //send email, password to backend for auth 
+            let response = await axios.post("http://localhost:5000/api/users/register", 
+                {
+                    "email": email, 
+                    "password": password, 
+                    "institution": "Indira Gandhi Delhi Technical University for Women", 
+                    "name": name
+                }
+            )
+            
+            if (response.statusText==="CREATED"){
+                setState("login"); 
+            }
+        }
     }
-    else{
-        //send name, email, password
+    catch(err){
+        console.error(err); 
     }
+
   }
 
   return (
@@ -23,10 +85,36 @@ const Login = () => {
               <span className="text-indigo-500">User</span> {state === "login" ? "Login" : "Sign Up"}
           </p>
           {state === "register" && (
+            <>
               <div className="w-full">
                   <p>Name</p>
                   <input onChange={(e) => setName(e.target.value)} value={name} placeholder="Your Name" className="border border-gray-200 rounded w-full p-2 mt-1 outline-indigo-500" type="text" required />
               </div>
+
+              <div className="w-full">
+                <label
+                htmlFor="institution"
+                >
+                Institute
+                </label>
+                <select
+                id="institution"
+                name="institution"
+                value={institute}
+                onChange={(e => setInstitute(e.target.value))}
+                className="w-full border border-gray-200 cursor-pointer rounded px-3 py-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                <option value="">Select Institute</option>
+                {institutions.map((curr_inst) => (
+                    <option key={curr_inst.name} value={curr_inst.name}>
+                    {curr_inst.name}
+                    </option>
+                ))}
+                </select>
+            </div>
+              
+            </>
+              
           )}
           <div className="w-full ">
               <p>Email</p>
@@ -45,9 +133,13 @@ const Login = () => {
                   Create an account? <span onClick={() => setState("register")} className="text-indigo-500 cursor-pointer">Register</span>
               </p>
           )}
-          <button className="bg-indigo-500 hover:bg-indigo-600 transition-all text-white w-full py-2 rounded-md cursor-pointer">
+          <button 
+          className="bg-indigo-500 hover:bg-indigo-600 transition-all text-white w-full py-2 rounded-md cursor-pointer" 
+          onClick={handleSubmit}
+          >
               {state === "register" ? "Create Account" : "Login"}
           </button>
+          
       </form>
   );
 };
