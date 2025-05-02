@@ -1,29 +1,84 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import CryptoJS from "crypto-js";
+import { verify } from "../utils";
 
-const ExamPaperCard = ({ subjectCode, year, session, paperId }) => {
+const ExamPaperCard = ({ subjectCode, year, session, paperId, name}) => {
   const [isVerified, setIsVerified] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [url, setUrl] = useState(""); 
+
+  const [data, setData] = useState('Initializing...')
+
+  const [dataArray, setDataArray] = useState(() => {
+    // Load initial data from local storage
+    const savedData = localStorage.getItem('streamedData');
+    return savedData ? JSON.parse(savedData) : [];
+  });
+
+
+    useEffect(() => {
+      const sse = new EventSource('http://localhost:5000/stream')
+  
+      function handleStream(e){
+        console.log(e)
+        setData(e.data) //the data server are sedning 
+  
+        setDataArray((prevArray) => {
+          const updatedArray = [...prevArray, e.data];
+          localStorage.setItem('streamedData', JSON.stringify(updatedArray));
+          return updatedArray;
+        });
+      }
+  
+      sse.onmessage = e =>{handleStream(e)}
+  
+      sse.onerror = e => {
+        //GOTCHA - can close stream and 'stall'
+        sse.close()
+      }
+  
+      return () => {
+        sse.close()
+        
+      }
+    },)  
+  
   // const [decryptedData, setDecryptedData] = useState("");
   // const [isDecrypting, setIsDecrypting] = useState(false);
 
   const handleVerification = () => {
     //for verification, user's public key is used
     //fetch signature and ciphertext
+    // setIsLoading(true);
+    // setTimeout(() => {
+    //   const verificationPassed = Math.random() > 0.2; // 80% pass
+    //   if (verificationPassed) {
+    //     setIsVerified(true);
+    //     toast.success("Verification successful!");
+    //   } else {
+    //     toast.error("Verification failed. Please try again.");
+    //   }
+    //   setIsLoading(false);
+    // }, 900);
+    // const verificationResult = verify(pubKey, signature, ciphertext);
+
+    // let res = axios.get("http:localhost:5000/api/papers/" + paperId);
+    // if (res.status === 200){
+    //   let pubKey = res.data["public_key"];
+    //   let signature = res.data["sign"];
+    //   let ciphertext = res.data["ciphertext"];
+    //   let sessionKey = res.data["session_key"]; 
+    // }
     
-    setIsLoading(true);
-    setTimeout(() => {
-      const verificationPassed = Math.random() > 0.2; // 80% pass
-      if (verificationPassed) {
-        setIsVerified(true);
-        toast.success("Verification successful!");
-      } else {
-        toast.error("Verification failed. Please try again.");
-      }
-      setIsLoading(false);
-    }, 900);
+    const verificationResult = true; // Replace with actual verification logic
+    if (verificationResult) {
+      setIsVerified(true);
+      toast.success("Verification successful!");
+    } else {
+      toast.error("Verification failed. Please try again.");
+    }
   };
 
   // Decrypt the file
@@ -119,6 +174,28 @@ const ExamPaperCard = ({ subjectCode, year, session, paperId }) => {
   //   }
   // }
 
+  const decryptPaper = async () => {
+    setIsVerified(false); 
+    toast.success("Decryption successful!");
+
+    const blob = new Blob([JSON.stringify({"message": "Decrypted"})], { type: "application/json" });
+
+    const objectUrl = URL.createObjectURL(blob);
+    setUrl(objectUrl);
+
+    // Create a temporary anchor element
+    const a = document.createElement("a");
+    a.href = objectUrl;
+    a.download = "END SEM(II PART).docx.pdf"; // Set the file name
+    document.body.appendChild(a); // Append the anchor to the document
+    a.click(); // Trigger the download
+    document.body.removeChild(a); // Remove the anchor from the document
+
+    // Revoke the object URL to free up memory
+    URL.revokeObjectURL(objectUrl);
+
+  }
+
   return (
     <div className="max-w-sm rounded overflow-hidden shadow-lg bg-white p-6 m-4 w-60">
       <div className="text-center">
@@ -141,13 +218,13 @@ const ExamPaperCard = ({ subjectCode, year, session, paperId }) => {
         ) : (
           <div className="flex flex-col space-y-2">
             <button
-              onClick={testDecryption}
+              onClick={decryptPaper}
               className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-md"
             >
               Decrypt Paper
             </button>
             <button
-              onClick={() => setIsVerified(false)}
+              onClick={() => {handleVerification()}}
               className="text-sm text-gray-500 hover:text-gray-700"
             >
               Verify again
