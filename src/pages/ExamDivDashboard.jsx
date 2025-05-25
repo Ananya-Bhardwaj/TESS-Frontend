@@ -50,6 +50,7 @@ const ExamDivDashboard = () => {
               year={paper.subject.year}
               session={paper.exam_type}
               id={paper.paper_id}
+              name={paper.name}
             />
           ))
         ) : (

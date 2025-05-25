@@ -2,17 +2,20 @@ import React, { useEffect, useState } from "react";
 import { filterOptions } from "../assets/assets";
 import { toast } from "react-toastify";
 import { generateSessionKey, symmetricDecryption} from "../utils";
-import CryptoJS from "crypto-js";
+import CryptoJS, { enc } from "crypto-js";
 import { ec, ec as EC } from 'elliptic';
-import { sign, verify, symmtericEncryption, hashCiphertext } from "../utils"; 
+import { sign, verify, symmtericEncryption, hashCiphertext, asymmetricEncryption } from "../utils"; 
 import axios from "axios";
 import { fetchSubjects } from "../data";
+import { useAuth } from "../providers/AuthProvider";
 
 const UploadPaper = () => {
   const [subjects, setSubjects] = useState([]); 
   const [selectedFile, setSelectedFile] = useState(null);
   const [isEncrypted, setIsEncrypted] = useState(false);
   const [encryptedData, setEncryptedData] = useState(null);
+
+  const { user } = useAuth(); 
 
   const [formData, setFormData] = useState({
     subject: "",
@@ -56,54 +59,28 @@ const UploadPaper = () => {
     });
   };
 
-// async function encryptDecryptAndDownload() {
-//   encryptedData = symmtericEncryption(selectedFile)
-
-//   //send encryptedData to db 
-
-//   const hashPaper = hashCiphertext(ciphertext);
-//   console.log(hashPaper);
-
-//       //4.5 signature ka func called here neeche defined hai
-//       signAndVerify(hashPaper);
-
-
-//       // 5. Decrypt (for verification)
-//       const bytes = symmetricDecryption(ciphertext, sessionKey);
-      
-//       // const decryptedBlob = new Blob([bytes.buffer], { type: selectedFile.type });
-//       // const decryptedUrl = URL.createObjectURL(decryptedBlob);
-//       // const decryptedLink = document.createElement('a');
-//       // decryptedLink.href = decryptedUrl;
-//       // decryptedLink.download = `decrypted_${selectedFile.name}`;
-//       // document.body.appendChild(decryptedLink);
-//       // decryptedLink.click();
-  
-//       // Cleanup
-//       setTimeout(() => {
-//         document.body.removeChild(encryptedLink);
-//         document.body.removeChild(decryptedLink);
-//         URL.revokeObjectURL(encryptedUrl);
-//         URL.revokeObjectURL(decryptedUrl);
-//       }, 200);
-  
-//       return {
-//         sessionKey: sessionKey.toString(),
-//         iv: ivBase64,
-//         originalFilename: selectedFile.name
-//       };
-  
-//     } catch (error) {
-//       console.error("File processing failed:", error);
-//       throw error;
-//     }
-//   }
+  const fetchPublicKey = async () => {
+    try {
+      //TODO: fetch using institution id
+      const response = await axios.get(`http://localhost:5000/api/public-key/`);
+      if (response.status === 200){
+        setPubKey(response.data.publicKey); // Adjust based on your API response structure
+      }
+    } catch (error) { 
+      console.error("Error fetching public key:", error);
+      throw error;
+    }
+  };
 
   const encryptPaper = async() => {
     try{
       const data = await symmtericEncryption(selectedFile); 
       setEncryptedData(data); 
       setIsEncrypted(true); 
+      //implement this function 
+      // fetchPublicKey();
+      // asymmetricEncryption(data.sessionKey, pubKey); 
+      // encryptSessionKey(data.sessionKey);
     }catch(err){
       console.error("File processing failed:", err);
       throw err;
@@ -112,9 +89,9 @@ const UploadPaper = () => {
 
   const signPaper = async () => {
     try {
-      const derSignature = await sign(encryptedData.ciphertext); 
+      const signature = await sign(encryptedData.ciphertext); 
       
-      setFormData((prev) => ({ ...prev, sign: derSignature, ciphertext: encryptedData.ciphertext }));
+      setFormData((prev) => ({ ...prev, sign: signature["derSignature"], ciphertext: encryptedData.ciphertext, sessionKey: encryptedData.sessionKey, iv: encryptedData.iv, publicKey: signature["pubKey"] }));
      
       const token = localStorage.getItem("token");
 
