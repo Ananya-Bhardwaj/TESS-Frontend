@@ -1,7 +1,7 @@
 //symmetric encryption
 import fs from "fs";
 import crypto from "crypto";
-import { ec } from "elliptic";
+import { ec as EC } from "elliptic";
 import { BN } from "bn.js";
 import CryptoJS from "crypto-js";
 import * as jose from 'jose';
@@ -44,7 +44,8 @@ export const symmtericEncryption = async (selectedFile) => {
     const encryptedData = {
       ciphertext,
       iv: ivBase64,
-      filename: selectedFile.name
+      filename: selectedFile.name, 
+      sessionKey: sessionKey
     };
 
     return encryptedData; 
@@ -70,7 +71,10 @@ export async function sign(ciphertext){
   });
   const derSignature = signature.toDER('hex');
   
-  return derSignature; 
+  return {
+    "derSignature": derSignature,
+    "pubKey": pubKey,
+  }
 }
 
 
@@ -441,7 +445,7 @@ export function reconstructKey(shareMap, t) {
 
   for (const j of selectedParticipants) {
     console.group(`Processing Participant ${j}'s share:`);
-    console.log("Share value:", shareMap[j].toString());
+    console.log(`Share value:, ${shareMap[j].toString()}`);
 
     // Compute Lagrange coefficient
     let numerator = new BN(1);
@@ -463,21 +467,21 @@ export function reconstructKey(shareMap, t) {
 
     // Compute denominator's modular inverse
     const invDenominator = denominator.invm(order);
-    console.log("Denominator inverse:", invDenominator.toString());
+    console.log(`Denominator inverse:, ${invDenominator.toString()}`);
 
     // Final Lagrange coefficient
     const lj = numerator.mul(invDenominator).umod(order);
-    console.log(`Lagrange coefficient l_${j}:`, lj.toString());
+    console.log(`Lagrange coefficient l_${j}:, ${lj.toString()}`);
 
     // Add weighted share
     const weightedShare = shareMap[j].mul(lj).umod(order);
     reconKey = reconKey.add(weightedShare).umod(order);
 
-    console.log(`Current reconstructed key:`, reconKey.toString());
+    console.log(`Current reconstructed key:, ${reconKey.toString()}`);
     console.groupEnd();
   }
 
-  console.log("Final reconstructed key:", reconKey.toString());
+  console.log(`Final reconstructed key:, ${reconKey.toString()}`);
   console.groupEnd();
   return reconKey;
 }
@@ -570,16 +574,16 @@ export function signatureGeneration(facultyPrivateKey, message) {
 export function generatePolynomialAndCommitments(t) {
   const coefficients = [];
 
-  console.log(\n--- Generating Polynomial of degree ${t - 1} ---);
+  console.log("\n--- Generating Polynomial of degree ${t - 1} ---");
   for (let i = 1; i < t; i++) {
     const coeff = BigInt(Math.floor(Math.random() * Number(order)));
-    console.log(Coefficient a_${i} = ${coeff});
+    console.log("Coefficient a_${i} = ${coeff}");
     coefficients.push(coeff);
   }
 
   const commitments = coefficients.map((coeff, index) => {
     const commitment = G.mul(coeff);
-    console.log("commitment...", JSON.stringify(commitment));
+    console.log(`commitment..., ${JSON.stringify(commitment)}`);
     console.log(
       `Commitment C_${index + 1} = G * a_${index + 1} = ${commitment}`
     );
@@ -602,7 +606,7 @@ export function evaluatePolynomial(coefficients, x) {
   const modResult = result % order;
   console.log(`Polynomial Result mod order = ${modResult}`);
 
-  return modResult;
+  return modResult;
 }
 
 // import { CryptoStorage} from "@webcrypto/storage";
@@ -674,6 +678,8 @@ export async function generateKeyPair() {
 
 
   await storeKey('my-ec-key', jwk);
+
+  return jwk; 
   
 }
 
@@ -756,111 +762,104 @@ export function generateShares(participantCount, threshold) {
     G.mul(new EC.keyFromPrivate(coeff, 'hex').getPrivate())
   );
 
-  return { shares, commitments };
+  return { shares, commitments};
 }
 
-function evaluatePolynomial(coefficients, x) {
-  return coefficients.reduce((sum, coeff, idx) => {
-    const term = new EC.keyFromPrivate(coeff, 'hex').getPrivate()
-      .mul(new BN(x).pow(new BN(idx)));
-    return sum.add(term);
-  }, new BN(0)).umod(n);
-}
 
 // // Combine public keys to get joint public key
 export function combinePublicKeys(publicKeys) {
   return publicKeys.reduce((Q, pubKey) =>
     Q.add(EC.keyFromPublic(pubKey, 'hex').getPublic()),
     G.mul(new BN(0)) // Start with infinity point
-  );
+);
 }
 
-function generateRandomScalar() {
-  // Fallback to window.crypto if available, otherwise use Math.random
-  const crypto = window.crypto || window.msCrypto;
-  let randomBytes;
+// function generateRandomScalar() {
+//   // Fallback to window.crypto if available, otherwise use Math.random
+//   const crypto = window.crypto || window.msCrypto;
+//   let randomBytes;
 
-  if (crypto && crypto.getRandomValues) {
-    randomBytes = new Uint8Array(32);
-    crypto.getRandomValues(randomBytes);
-    console.log('Using crypto.getRandomValues');
-  } else {
-    console.warn('Using Math.random fallback - less secure!');
-    randomBytes = new Uint8Array(32);
-    for (let i = 0; i < 32; i++) {
-      randomBytes[i] = Math.floor(Math.random() * 256);
-    }
-  }
+//   if (crypto && crypto.getRandomValues) {
+//     randomBytes = new Uint8Array(32);
+//     crypto.getRandomValues(randomBytes);
+//     console.log('Using crypto.getRandomValues');
+//   } else {
+//     console.warn('Using Math.random fallback - less secure!');
+//     randomBytes = new Uint8Array(32);
+//     for (let i = 0; i < 32; i++) {
+//       randomBytes[i] = Math.floor(Math.random() * 256);
+//     }
+//   }
 
-  const k = new BN(randomBytes).umod(order.subn(1)); // 0 to p-2
-  console.log('Generated k:', k.toString(16));
-  return k;
-}
+//   const k = new BN(randomBytes).umod(order.subn(1)); // 0 to p-2
+//   console.log('Generated k:', k.toString(16));
+//   return k;
+// }
 
 
 
-export function reconstructKey(shareMap, t) {
-  console.group("🔑 Threshold Key Reconstruction");
-  console.log(Reconstructing with threshold t=${t});
+// export function reconstructKey(shareMap, t) {
+//   console.group("🔑 Threshold Key Reconstruction");
+//   console.log(Reconstructing with threshold t=${t});
 
-  // Convert share map to array [share1, share2,...]
-  const shares = Object.values(shareMap);
-  const participantIds = Object.keys(shareMap).map(Number);
+//   // Convert share map to array [share1, share2,...]
+//   const shares = Object.values(shareMap);
+//   const participantIds = Object.keys(shareMap).map(Number);
 
-  console.assert(
-    shares.length >= t,
-    Need at least ${t} shares, got ${shares.length}
-  );
+//   console.assert(
+//     shares.length >= t,
+//     Need at least ${t} shares, got ${shares.length}
+//   );
 
-  let reconKey = new BN(0);
-  console.log("Initial reconstructed key:", reconKey.toString());
+//   let reconKey = new BN(0);
+//   console.log("Initial reconstructed key:", reconKey.toString());
 
-  // Select first t participants for reconstruction
-  const selectedParticipants = participantIds.slice(0, t);
-  console.log("Using participants:", selectedParticipants);
+//   // Select first t participants for reconstruction
+//   const selectedParticipants = participantIds.slice(0, t);
+//   console.log("Using participants:", selectedParticipants);
 
-  for (const j of selectedParticipants) {
-    console.group(Processing Participant ${j}'s share:);
-    console.log("Share value:", shareMap[j].toString());
+//   for (const j of selectedParticipants) {
+//     console.group(Processing Participant ${j}'s share:);
+//     console.log("Share value:", shareMap[j].toString());
 
-    // Compute Lagrange coefficient
-    let numerator = new BN(1);
-    let denominator = new BN(1);
+//     // Compute Lagrange coefficient
+//     let numerator = new BN(1);
+//     let denominator = new BN(1);
 
-    for (const h of selectedParticipants) {
-      if (h !== j) {
-        const hBN = new BN(h);
-        const jBN = new BN(j);
+//     for (const h of selectedParticipants) {
+//       if (h !== j) {
+//         const hBN = new BN(h);
+//         const jBN = new BN(j);
 
-        numerator = numerator.mul(hBN);
-        denominator = denominator.mul(hBN.sub(jBN));
+//         numerator = numerator.mul(hBN);
+//         denominator = denominator.mul(hBN.sub(jBN));
 
-        console.log(`  h=${h}:`);
-        console.log(`    numerator = ${numerator.toString()}`);
-        console.log(`    denominator = ${denominator.toString()}`);
-      }
-    }
+//         console.log(`  h=${h}:`);
+//         console.log(`    numerator = ${numerator.toString()}`);
+//         console.log(`    denominator = ${denominator.toString()}`);
+//       }
+//     }
 
-    // Compute denominator's modular inverse
-    const invDenominator = denominator.invm(order);
-    console.log("Denominator inverse:", invDenominator.toString());
+//     // Compute denominator's modular inverse
+//     const invDenominator = denominator.invm(order);
+//     console.log("Denominator inverse:", invDenominator.toString());
 
-    // Final Lagrange coefficient
-    const lj = numerator.mul(invDenominator).umod(order);
-    console.log(Lagrange coefficient l_${j}:, lj.toString());
+//     // Final Lagrange coefficient
+//     // const lj = numerator.mul(invDenominator).umod(order);
+//     // console.log(`Lagrange coefficient l_${j}:, lj.toString()`);
 
-    // Add weighted share
-    const weightedShare = shareMap[j].mul(lj).umod(order);
-    reconKey = reconKey.add(weightedShare).umod(order);
+//     // Add weighted share
+//     const weightedShare = shareMap[j].mul(lj).umod(order);
+//     reconKey = reconKey.add(weightedShare).umod(order);
 
-    console.log(Current reconstructed key:, reconKey.toString());
-    console.groupEnd();
-  }
+//     console.log("Current reconstructed key:", reconKey.toString());
+//     console.groupEnd();
+//   }
 
-  console.log("Final reconstructed key:", reconKey.toString());
-  console.groupEnd();
-  return reconKey;
-}
+//   console.log("Final reconstructed key:", reconKey.toString());
+//   console.groupEnd();
+//   return reconKey;
+// }
 
 
 // export function asymmetricDecrypt(secKey, cipher) {
